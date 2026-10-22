@@ -1,4 +1,7 @@
 
+import CheckoutScreen from "./CheckoutScreen";
+// const [showCheckout, setShowCheckout] = useState(false);
+
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -78,7 +81,10 @@ const categories = [
   "Accessories",
 ];
 
+
 export default function HomeScreen() {
+
+  
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
@@ -87,6 +93,7 @@ export default function HomeScreen() {
   const [selectedProduct, setSelectedProduct] =
     useState<Product | null>(null);
   const [showCart, setShowCart] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const cartCount = Object.values(cart).reduce(
     (sum, qty) => sum + qty,
@@ -228,6 +235,56 @@ export default function HomeScreen() {
       />
     );
   }
+  // Checkout screen.
+  if (showCheckout) {
+    return (
+      <CheckoutScreen
+        items={cartItems}
+        onBack={() => {
+          setShowCheckout(false);
+          setShowCart(true);
+        }}
+        onPlaceOrder={() => {
+          Alert.alert(
+            "Order placed!",
+            "Your demo order has been placed successfully.",
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  setShowCheckout(false);
+                  setShowCart(false);
+                  setCart({});
+                },
+              },
+            ]
+          );
+        }}
+      />
+    );
+  }
+
+  // Cart screen.
+  if (showCart) {
+    return (
+      <CartScreen
+        items={cartItems}
+        onBack={() => setShowCart(false)}
+        onChangeQuantity={changeCartQuantity}
+        onRemove={removeFromCart}
+        onCheckout={() => {
+          if (cartItems.length === 0) {
+            Alert.alert("Empty cart", "Add a product before checking out.");
+            return;
+          }
+
+          setShowCart(false);
+          setShowCheckout(true);
+        }}
+      />
+    );
+  }
+    
 
   // Main home screen.
   return (
