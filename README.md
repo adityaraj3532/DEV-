@@ -1,10 +1,11 @@
-# ElectroShop 🛒
+# ElectroShop
 
 **A cross-platform electronics shopping application built with React Native, Expo, and FastAPI.**
 
 ElectroShop aims to simplify electronics shopping by providing a platform where customers can explore products, compare options, manage wishlists, and track orders. The project is being developed with a modular frontend and backend architecture.
 
-## ✨ Features
+
+## Features
 
 ### Customer Features
 
@@ -33,7 +34,7 @@ ElectroShop aims to simplify electronics shopping by providing a platform where 
 - Product comparison assistance.
 - Return and refund management.
 
-## 🧰 Tech Stack
+## Tech Stack
 
 | Layer           | Technology       |
 | --------------- | ---------------- |
@@ -45,7 +46,7 @@ ElectroShop aims to simplify electronics shopping by providing a platform where 
 | Authentication  | Planned          |
 | Version Control | Git and GitHub   |
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 DEV-/
@@ -76,7 +77,7 @@ DEV-/
 
 _The structure may evolve as development progresses._
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -158,7 +159,7 @@ Database
 
 The API base URL depends on where the app runs. For a physical mobile device, use your computer's local network IP address instead of `127.0.0.1`.
 
-## 🛠️ Development Guidelines
+## Development Guidelines
 
 - Keep frontend and backend code separate.
 - Use reusable components and modular services.
@@ -167,7 +168,7 @@ The API base URL depends on where the app runs. For a physical mobile device, us
 - Write clear commit messages.
 - Test changes before opening a pull request.
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [x] Initialize the frontend project.
 - [x] Organize the repository for frontend and backend development.
@@ -180,7 +181,7 @@ The API base URL depends on where the app runs. For a physical mobile device, us
 - [ ] Develop smart shopping features.
 - [ ] Test and deploy the application.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions, suggestions, and bug reports are welcome.
 
@@ -207,7 +208,7 @@ Contributions, suggestions, and bug reports are welcome.
 
 6. Open a pull request.
 
-## 📄 License
+## License
 
 This project is distributed under the license included in the repository. See [LICENSE](LICENSE) for details.
 
