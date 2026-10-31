@@ -1,8 +1,10 @@
 # ElectroShop
 
-**Latest demo source:** see [demo/README.md](demo/README.md) for owner approval, delivery updates, profiles, saved addresses, returns, and photo reviews. [Open the private demo](https://electroshop-aditya-demo.adityaraj3532.chatgpt.site).
+**Supabase-connected browser app:** [demo/README.md](demo/README.md) now contains the live Supabase integration, including Auth, shared catalog, profiles, orders, delivery, returns, verified reviews, and Storage. [Open ElectroShop](https://electroshop-aditya-demo.adityaraj3532.chatgpt.site).
 
-**Backend:** see [START-HERE.md](START-HERE.md) for the baseline FastAPI + SQLite API and email OTP setup. The browser prototype, Expo screens, and backend are not yet fully integrated. Supabase connection is pending project selection. Real online payments are not enabled.
+The existing free-plan Supabase project was resumed. Shop data is isolated in the `electroshop` schema; the pre-existing SAFE Route table was not modified. Owner account: `adityaraj3532@gmail.com`. Sign in with a real email; demo code `123456` no longer works. See [Supabase setup and verification](demo/supabase/README.md) for email/SMTP configuration and security details.
+
+**Original code:** the Expo frontend and FastAPI/SQLite prototype remain available but are separate from this connected browser app. Real online payments, refunds, and external courier API syncing are not enabled.
 
 **A cross-platform electronics shopping application built with React Native, Expo, and FastAPI.**
 

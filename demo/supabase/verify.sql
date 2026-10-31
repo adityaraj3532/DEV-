@@ -1,0 +1,40 @@
+begin;
+do $$
+declare
+ owner_id uuid:=gen_random_uuid();buyer_id uuid:=gen_random_uuid();other_id uuid:=gen_random_uuid();driver_id uuid:=gen_random_uuid();suffix text:=replace(gen_random_uuid()::text,'-','');owner_email text;buyer_email text;driver_email text;product jsonb;ord jsonb;ret jsonb;snap jsonb;pid bigint;oid text;rid text;blocked boolean;after_stock int;
+begin
+ owner_email='owner-'||suffix||'@example.invalid';buyer_email='buyer-'||suffix||'@example.invalid';driver_email='driver-'||suffix||'@example.invalid';
+ insert into auth.users(id,aud,role,email,email_confirmed_at,created_at,updated_at) values(owner_id,'authenticated','authenticated',owner_email,now(),now(),now()),(buyer_id,'authenticated','authenticated',buyer_email,now(),now(),now()),(other_id,'authenticated','authenticated','other-'||suffix||'@example.invalid',now(),now(),now()),(driver_id,'authenticated','authenticated',driver_email,now(),now(),now());
+ insert into electroshop.roles values(owner_email,'admin');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+ product=public.electroshop_api('/admin/products','POST','{"name":"Rollback test product","brand":"Test","category":"Camera","description":"Temporary test","price_paise":50000,"stock":2,"returnable":true,"return_days":7,"image_url":""}');pid=(product->>'id')::bigint;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',buyer_id,'role','authenticated')::text,true);
+ blocked=false;begin perform public.electroshop_api('/admin/products','DELETE',jsonb_build_object('id',pid));exception when others then blocked=sqlerrm like '%Owner access%';end;assert blocked,'Customer changed catalog';
+ ord=public.electroshop_api('/orders','POST',jsonb_build_object('name','Test buyer','phone','9876543210','address','Temporary test address, Jaipur 302001','items',jsonb_build_array(jsonb_build_object('product_id',pid,'quantity',1),jsonb_build_object('product_id',pid,'quantity',1)),'total_paise',1));oid=ord->>'id';assert (ord->>'total_paise')::bigint=100000,'Client controlled totals';assert ord->>'status'='Placed','Auto-confirmed';
+ blocked=false;begin perform public.electroshop_api('/admin/orders/'||oid,'PUT','{"status":"Confirmed","note":"Trying"}');exception when others then blocked=sqlerrm like '%Owner access%';end;assert blocked,'Customer confirmed own order';
+ blocked=false;begin perform public.electroshop_api('/reviews','POST',jsonb_build_object('order_id',oid,'product_id',pid,'rating',5,'text','Before delivery'));exception when others then blocked=sqlerrm like '%delivered purchase%';end;assert blocked,'Undelivered review accepted';
+ perform public.electroshop_api('/customer','PUT','{"profile":{"name":"Test buyer"},"addresses":[{"label":"Private test address"}],"wishlist":[],"later":[],"cart":{}}');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',other_id,'role','authenticated')::text,true);
+ snap=public.electroshop_api('/snapshot');assert jsonb_array_length(snap->'orders')=0,'Cross-customer orders exposed';assert snap->'customer'='{}'::jsonb,'Cross-customer profile exposed';
+ blocked=false;begin perform public.electroshop_api('/returns','POST',jsonb_build_object('order_id',oid,'product_id',pid,'reason','Stolen request'));exception when others then blocked=sqlerrm like '%own purchases%';end;assert blocked,'Cross-customer return accepted';
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+ blocked=false;begin perform public.electroshop_api('/admin/orders/'||oid,'PUT','{"status":"Shipped","note":"Skipping confirmation"}');exception when others then blocked=sqlerrm like '%Invalid status%';end;assert blocked,'Skipped approval';
+ blocked=false;begin perform public.electroshop_api('/admin/orders/'||oid,'PUT',jsonb_build_object('assigned_to',driver_email,'note','Before approval'));exception when others then blocked=sqlerrm like '%confirmation is required%';end;assert blocked,'Assigned before confirmation';
+ perform public.electroshop_api('/admin/orders/'||oid,'PUT','{"status":"Confirmed","note":"Owner approved"}');
+ perform public.electroshop_api('/admin/orders/'||oid,'PUT',jsonb_build_object('status','Shipped','assigned_to',driver_email,'note','Assigned after approval'));
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',driver_id,'role','authenticated')::text,true);
+ snap=public.electroshop_api('/snapshot');assert snap->'user'->>'role'='delivery','Delivery role missing';assert jsonb_array_length(snap->'orders')=1,'Assigned delivery unavailable';
+ perform public.electroshop_api('/delivery/orders/'||oid,'PUT','{"status":"Delivered","note":"Delivered in test"}');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',buyer_id,'role','authenticated')::text,true);
+ ret=public.electroshop_api('/returns','POST',jsonb_build_object('order_id',oid,'product_id',pid,'reason','Product faulty'));rid=ret->>'id';
+ perform public.electroshop_api('/reviews','POST',jsonb_build_object('order_id',oid,'product_id',pid,'rating',4,'text','Verified test review','display_name','Test buyer'));
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+ perform public.electroshop_api('/admin/returns/'||rid,'PUT','{"status":"Approved","notes":"Bring it back"}');
+ perform public.electroshop_api('/admin/returns/'||rid,'PUT','{"status":"Received","notes":"Received back"}');
+ select (data->>'stock')::integer into after_stock from electroshop.products where id=pid;assert after_stock=2,'Return stock restoration failed';
+ blocked=false;begin perform public.electroshop_api('/admin/returns/'||rid,'PUT','{"status":"Received","notes":"Twice"}');exception when others then blocked=sqlerrm like '%Invalid return%';end;assert blocked,'Duplicate return restocked twice';
+ perform set_config('request.jwt.claims','{}',true);snap=public.electroshop_api('/snapshot');assert snap->'user'='null'::jsonb,'Anonymous user detected';assert jsonb_array_length(snap->'orders')=0 and jsonb_array_length(snap->'returns')=0,'Private rows exposed anonymously';assert not ((snap->'reviews'->0) ? 'email'),'Review email exposed';
+ assert not has_table_privilege('authenticated','electroshop.orders','SELECT'),'Orders table exposed directly';assert not has_table_privilege('anon','electroshop.customers','SELECT'),'Customer table exposed directly';
+end $$;
+rollback;
+select 'All security and business-flow assertions passed; test records rolled back.' as verification;

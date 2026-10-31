@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
+    "esbuild": "0.28.2"
+  },
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node --check src/app.js",
+    "test": "node checks/live-rest.mjs"
+  }
+}

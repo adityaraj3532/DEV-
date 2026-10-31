@@ -1,10 +1,14 @@
-# Verification results
+# Current verification
 
-- Backend: 5 pytest tests passed, including concurrent checkout against the last available unit (one succeeds and one is rejected).
-- Frontend: TypeScript (`npx tsc --noEmit`) passed.
-- Frontend: ESLint (`npx eslint .`) passed. `expo lint` incorrectly rejected the installed ESLint version; the direct ESLint command was used successfully.
-- Browser portal JavaScript: `node --check backend/static/app.js` passed.
-- Git whitespace check passed.
-- The browser automation run could not start because Chromium was unavailable and its download failed. Visual layout and browser interactions remain unverified.
-- Live SMTP delivery was not tested; no provider credentials were supplied.
-- Existing native Expo demo screens are not connected to the new API. Both new browser portals are served by FastAPI.
+The Supabase-connected browser app is in `demo/` (the historical directory name is retained).
+
+- Live database transaction tests passed for owner-only catalog changes, role checks, cross-customer order/address isolation, grouped cart totals, approval gates, delivery assignment, return requests, one-time stock restoration, and delivered-purchase-only reviews. Every test record was rolled back.
+- Public publishable-key REST connection succeeded. Anonymous checkout and direct private-schema access were denied.
+- Browser QA loaded the shared empty catalog and cart. Fake browser-local data was not imported.
+- JavaScript bundle build and syntax checks passed.
+- New tables have RLS, explicit deny policies, no direct frontend table grants, and a validated private RPC dispatcher. New schema had no security-advisor findings. A pre-existing INFO notice for the unrelated SAFE Route table remains unchanged.
+- Real email delivery and real-user authenticated browser flows were not tested: user must complete email sign-in; custom SMTP and email template/redirect configuration may be needed.
+- Supabase Storage bucket and ownership/verified-purchase upload policies are installed. Real-user photo upload was not tested in this turn because no authenticated user session was supplied.
+- Online payment collection/refunds and external courier syncing remain unconnected. The connected server only accepts COD.
+
+The legacy Expo/FastAPI code has not been integrated into this browser app. Earlier checks for that code passed and it was not changed in this update.

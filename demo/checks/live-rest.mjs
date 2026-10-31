@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {createClient} from '@supabase/supabase-js';
+import {readFile} from 'node:fs/promises';
+const cfg=JSON.parse(await readFile(new URL('../src/supabase-config.json',import.meta.url),'utf8'));
+const sb=createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:false,autoRefreshToken:false}});
+const {data,error}=await sb.rpc('electroshop_api',{p_path:'/snapshot'});
+assert.equal(error,null);assert.equal(data.user,null);assert.equal(data.orders.length,0);assert.equal(data.returns.length,0);assert.deepEqual(data.customer,{});assert.ok(data.reviews.every(r=>!('email' in r)&&!('order_id' in r)));
+const denied=await sb.rpc('electroshop_api',{p_path:'/orders',p_method:'POST',p_body:{}});assert.ok(denied.error);
+const direct=await sb.schema('electroshop').from('orders').select('*');assert.ok(direct.error);
+console.log('PASS: live public REST connection, private rows hidden, anonymous checkout and direct table access denied.');
