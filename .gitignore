@@ -39,3 +39,18 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Shop secrets and persistent data
+.env
+backend/.env
+*.db
+*.db-shm
+*.db-wal
+.venv/
+__pycache__/
+.pytest_cache/
+
+# This buildless demo's dist folder contains its maintained source.
+!demo/dist/
+!demo/dist/app.js
+!demo/dist/index.html

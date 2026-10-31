@@ -1,5 +1,9 @@
 # ElectroShop
 
+**Latest demo source:** see [demo/README.md](demo/README.md) for owner approval, delivery updates, profiles, saved addresses, returns, and photo reviews. [Open the private demo](https://electroshop-aditya-demo.adityaraj3532.chatgpt.site).
+
+**Backend:** see [START-HERE.md](START-HERE.md) for the baseline FastAPI + SQLite API and email OTP setup. The browser prototype, Expo screens, and backend are not yet fully integrated. Supabase connection is pending project selection. Real online payments are not enabled.
+
 **A cross-platform electronics shopping application built with React Native, Expo, and FastAPI.**
 
 ElectroShop aims to simplify electronics shopping by providing a platform where customers can explore products, compare options, manage wishlists, and track orders. The project is being developed with a modular frontend and backend architecture.
