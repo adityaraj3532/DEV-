@@ -1,5 +1,3 @@
-# Start Dev Computer
+# Start ElectroShop
 
-Follow [README.md](README.md). Web: `npm run setup`, `npm run build`, `npm start`. Expo: `npm run setup:mobile`, `npm run mobile`.
-
-Supabase is connected. Real email verification is required for owner operations and checkout. Custom SMTP remains the operational fix for the earlier email rate limit.
+Use the instructions in [README.md](README.md). From the repository root: `npm run setup`, `npm run build`, then `npm start`. The old Expo and Python app entry points have been removed.

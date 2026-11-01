@@ -1,16 +1,11 @@
 {
-  "name": "dev-computer",
+  "name": "electroshop",
   "private": true,
   "scripts": {
     "setup": "npm ci --prefix frontend",
     "build": "npm run build --prefix frontend",
     "start": "npm start --prefix frontend",
     "check": "npm run check --prefix frontend",
-    "test": "npm test --prefix frontend",
-    "setup:mobile": "npm ci --prefix mobile",
-    "mobile": "npm start --prefix mobile",
-    "mobile:web": "npm run web --prefix mobile",
-    "check:mobile": "npm run check --prefix mobile && npm run lint --prefix mobile",
-    "build:mobile": "npm run build --prefix mobile"
+    "test": "npm test --prefix frontend"
   }
 }

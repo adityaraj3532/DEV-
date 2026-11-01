@@ -1,9 +1,7 @@
-# Dev Computer development
+# ElectroShop development
 
-The user requested Expo/React Native and Supabase again. `mobile/` is the SDK 58 Expo Router client; `frontend/` is the responsive connected web storefront/owner dashboard. Both use the isolated Supabase shop schema. See FEATURES.md for shipped/pending scope. Do not claim planned modules are implemented.
+This repository now contains one main browser application in `frontend/`, built with JavaScript and esbuild; Supabase is currently disconnected. The Expo and FastAPI prototypes were removed at the user's request.
 
-Before Expo changes, read the matching versioned documentation and use `npx expo install` for compatible packages. Use Expo Router for navigation. Keep reusable UI and data code outside route directories. Run mobile TypeScript, ESLint and export checks after native changes.
+Run `npm run check`, `npm run build`, and `npm test` from the root before delivery. Never bundle service-role keys. Keep server-side role/ownership checks and real authentication for protected operations. The user explicitly selected browser-local mode. Preserve the disconnected entry point until they request reconnection.
 
-Run root `npm run check`, `npm run build`, `npm test`, and relevant mobile checks before delivery. Keep verified authentication and server-side role/ownership checks for real data. Never bundle service-role/payment secrets. Validate stock/order changes transactionally and preserve the owner-confirmation requirement. Do not touch unrelated SAFE Route records.
-
-The user requests that project changes be validated, committed and pushed to the original GitHub main, preserving upstream work and never force-pushing. Exclude secrets, real customer data, dependencies and Site credentials.
+The user requests that project changes be validated, committed and pushed to the original GitHub `main`, preserving upstream work and never force-pushing. Keep source, lockfiles and setup docs; exclude secrets, customer data, local databases and Site credentials.

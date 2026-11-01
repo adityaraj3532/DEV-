@@ -1,55 +1,21 @@
-# Dev Computer
+# ElectroShop
 
-Electronics shopping and store management, implemented incrementally with **Expo / React Native**, a responsive web owner dashboard, and **Supabase PostgreSQL, Auth, Storage, RLS and Edge Functions**.
+The main web app in `frontend/` currently runs without Supabase. Customer, owner and delivery portals open directly without email/OTP. Products, orders, profiles, reviews and returns use browser-local storage on this device and origin. Use sample personal details. No real payments are processed, and records do not sync between devices.
 
-See [feature match and roadmap](FEATURES.md) for the exact shipped/pending status of every requested area. This update completes the first foundation increment, not the entire long-term product.
-
-## Run the web shop and owner dashboard
-From the repository root in Windows PowerShell:
+## Run locally
+From the repository root:
 ```powershell
 git pull origin main
 npm run setup
 npm run build
 npm start
 ```
-Open http://localhost:8080. Owner: http://localhost:8080/?portal=admin. Delivery: http://localhost:8080/?portal=delivery. Stop the old server first and refresh with Ctrl+Shift+R after updating.
+Open http://localhost:8080. Owner: http://localhost:8080/?portal=admin. Delivery: http://localhost:8080/?portal=delivery. Stop an old server first and refresh with Ctrl+Shift+R after updating.
 
-## Run the Expo app
-```powershell
-npm run setup:mobile
-npm run mobile
-```
-Scan the Expo QR code with a compatible Expo Go/development client, or run `npm run mobile:web` for React Native Web. SDK 58 is used; device clients must support that SDK. Android/iOS builds are not distributed yet.
+The old Expo UI and separate demo folder remain removed. Supabase integration source is retained for later reconnection but is not imported or bundled. Existing remote database records are unchanged.
 
-## Included in increment 1
+Run `npm run check` and `npm test` for local validation. `test:live` in the frontend is a manual integration check only; it is not run by default.
 
-- Dev Computer branding; catalogue, categories, brand/budget filters, product details, SKU/specifications, cart and wishlist.
-- Protected owner product CRUD, photo upload, inventory adjustments with reasons, low-stock overview, and web audit log.
-- Real shared Supabase data; clients refresh every 15 seconds and when returning to the app. No local sample-inventory fallback.
-- Server-validated COD orders with stock locking and retry keys; owner confirmation required before shipping. Native customer cancellations restore stock once before shipment.
-- Existing web profile/address, delivery, returns/reviews and offers features preserved; offers and events now persist in Supabase. Native offers are viewable too.
-- A JWT-protected `dev-computer-checkout` Edge Function validates a verified caller and invokes the transactional database checkout.
+## Offers and events
 
-**Login setup:** owner email `adityaraj3532@gmail.com`. Custom SMTP is still needed to resolve the earlier Supabase email quota issue. Existing unexpired codes/links can be verified. Public browsing requires no login; real purchases and owner changes do.
-
-**Not connected yet:** online payments/refunds, GST invoices, PC Builder, repair/warranty, advanced business tools, AI, WhatsApp, push and courier APIs. No fake payment successes or mock production orders are used.
-
-## Structure
-
-- `mobile/`: Expo Router application with reusable native UI and a shared store adapter.
-- `frontend/`: responsive customer/owner/delivery web client.
-- `frontend/supabase/`: initial SQL, applied upgrade SQL and rollback verification scripts. The existing `electroshop` schema/bucket names are retained to preserve records; the product brand is Dev Computer.
-- `supabase/functions/dev-computer-checkout/`: deployed checkout Edge Function source.
-- `FEATURES.md`: feature audit and staged plan.
-
-Only public Supabase configuration is bundled. Never put service-role or payment secrets in either client. Row permissions and authoritative stock/price checks run on the server.
-
-## Validation
-
-```powershell
-npm run check
-npm test
-npm run check:mobile
-npm run build:mobile
-```
-Database rollback scripts test role boundaries, stock locking behavior, stale-edit rejection, retry keys, promotions, cancellation, returns and review eligibility without retaining synthetic records. The live API check sends no sign-in emails.
+Owner portal → Manage offers → Create promotion. Add an offer/event title, announcement, optional image, dates and terms. Publish or save a draft, select banner placement, edit, unpublish or delete later. Customers use Offers & events; only current published announcements appear. Offers advertise listed product prices; they do not apply automatic discounts. Change product prices separately for a sale. Data is shared between portals only on the same browser and origin.
