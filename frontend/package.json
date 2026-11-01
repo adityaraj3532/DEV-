@@ -1,28 +1,15 @@
 {
-  "name": "electroshop",
-  "version": "1.0.0",
-  "main": "index.ts",
   "dependencies": {
-    "@expo/metro-runtime": "~58.0.14",
-    "expo": "~58.0.16",
-    "expo-status-bar": "~58.0.3",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "react-native": "0.88.0",
-    "react-native-web": "^0.21.4"
+    "@supabase/supabase-js": "2.118.0",
+    "esbuild": "0.28.2"
   },
-  "devDependencies": {
-    "@types/react": "~19.3.0",
-    "eslint": "^9.0.0",
-    "eslint-config-expo": "~58.0.4",
-    "typescript": "~6.0.3"
-  },
+  "private": true,
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
-    "lint": "expo lint"
+    "build": "node build.mjs",
+    "check": "node --check src/entry.js && node --check src/app.js && node --check src/email-auth.js",
+    "test": "node checks/email-auth.mjs && node checks/live-rest.mjs",
+    "test:email": "node checks/email-auth.mjs",
+    "start": "node serve.mjs"
   },
-  "private": true
+  "name": "electroshop-frontend"
 }

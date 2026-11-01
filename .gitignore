@@ -50,7 +50,7 @@ backend/.env
 __pycache__/
 .pytest_cache/
 
-# This buildless demo's dist folder contains its maintained source.
-!demo/dist/
-!demo/dist/app.js
-!demo/dist/index.html
+# Committed static build for local and hosted startup.
+!frontend/dist/
+!frontend/dist/app.js
+!frontend/dist/index.html

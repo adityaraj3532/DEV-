@@ -35,7 +35,7 @@ Verification completed:
 - Browser storefront loaded the live empty catalog.
 - Supabase security advisor reported no new ElectroShop findings. One pre-existing INFO notice remains for the unrelated SAFE Route table's RLS-without-policy configuration; it was not changed.
 
-Real online payments, refunds and external courier API integration remain unconnected. Only cash on delivery is accepted by the connected server. The original Expo app and legacy FastAPI/SQLite prototype remain separate; use the hosted browser app for this Supabase integration.
+Real online payments, refunds and external courier API integration remain unconnected. Only cash on delivery is accepted by the connected server. The original Expo app and legacy FastAPI/SQLite prototype have been removed. This Supabase-connected browser app is now the main frontend.
 
 ## Email rate-limit troubleshooting
 

@@ -1,223 +1,26 @@
 # ElectroShop
 
-**Supabase-connected browser app:** [demo/README.md](demo/README.md) now contains the live Supabase integration, including Auth, shared catalog, profiles, orders, delivery, returns, verified reviews, and Storage. [Open ElectroShop](https://electroshop-aditya-demo.adityaraj3532.chatgpt.site).
+The new electronics storefront is now the main application in `frontend/`. The previous Expo UI, FastAPI/SQLite prototype and browser-only demo have been removed. Their history remains in Git.
 
-The existing free-plan Supabase project was resumed. Shop data is isolated in the `electroshop` schema; the pre-existing SAFE Route table was not modified. Owner account: `adityaraj3532@gmail.com`. Sign in with a real email; demo code `123456` no longer works. See [Supabase setup and verification](demo/supabase/README.md) for email/SMTP configuration and security details.
+## Run on Windows
 
-**Original code:** the Expo frontend and FastAPI/SQLite prototype remain available but are separate from this connected browser app. Real online payments, refunds, and external courier API syncing are not enabled.
-
-**A cross-platform electronics shopping application built with React Native, Expo, and FastAPI.**
-
-ElectroShop aims to simplify electronics shopping by providing a platform where customers can explore products, compare options, manage wishlists, and track orders. The project is being developed with a modular frontend and backend architecture.
-
-
-## Features
-
-### Customer Features
-
-- Browse electronics such as smartphones, laptops, desktops, and cameras.
-- View product details, pricing, and stock availability.
-- Search and compare products.
-- Manage a shopping cart and wishlist.
-- User authentication and profile management.
-- View order history and order status.
-- Product ratings and reviews.
-
-### Seller Features
-
-- Add and manage products.
-- Update product details, prices, and stock.
-- Manage product availability.
-- Configure return and refund eligibility.
-
-### Planned Features
-
-- Barcode scanning for product identification.
-- Online payments and GST invoices.
-- Smart product recommendations.
-- Budget-based shopping suggestions.
-- Visual product search.
-- Product comparison assistance.
-- Return and refund management.
-
-## Tech Stack
-
-| Layer           | Technology       |
-| --------------- | ---------------- |
-| Frontend        | React Native     |
-| Development     | Expo             |
-| Language        | TypeScript       |
-| Backend         | Python, FastAPI  |
-| Database        | To be configured |
-| Authentication  | Planned          |
-| Version Control | Git and GitHub   |
-
-## Project Structure
-
-```text
-DEV-/
-├── frontend/
-│   ├── assets/
-│   ├── src/
-│   │   └── screens/
-│   ├── App.tsx
-│   ├── app.json
-│   ├── index.ts
-│   ├── package.json
-│   ├── package-lock.json
-│   └── tsconfig.json
-│
-├── backend/
-│   ├── app/
-│   │   ├── routers/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   └── services/
-│   ├── main.py
-│   └── requirements.txt
-│
-├── .gitignore
-├── LICENSE
-└── README.md
-```
-
-_The structure may evolve as development progresses._
-
-## Getting Started
-
-### Prerequisites
-
-Install the following tools before starting:
-
-- [Node.js](https://nodejs.org/)
-- [Python](https://www.python.org/)
-- [Git](https://git-scm.com/)
-- [Expo Go](https://expo.dev/go/) for testing on a compatible mobile device, or an emulator.
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/adityaraj3532/DEV-.git
-cd DEV-
-```
-
-### 2. Set Up the Frontend
-
-```bash
-cd frontend
-npm install
-npx expo start
-```
-
-To run the web version, use:
-
-```bash
-npx expo start --web
-```
-
-### 3. Set Up the Backend
-
-Open a separate terminal from the repository root:
-
-```bash
-cd backend
-python -m venv .venv
-```
-
-Activate the virtual environment on Windows PowerShell:
-
+From the repository root:
 ```powershell
-.\.venv\Scripts\Activate.ps1
+git pull origin main
+npm run setup
+npm run build
+npm start
 ```
+Open http://localhost:8080. Node.js and npm are required; Python and Expo are no longer needed. Stop any old server on port 8080 first and press Ctrl+Shift+R in the browser after updating.
 
-Install the backend dependencies:
+- Customer: http://localhost:8080/
+- Owner: http://localhost:8080/?portal=admin
+- Delivery: http://localhost:8080/?portal=delivery
 
-```bash
-pip install -r requirements.txt
-```
+Products, accounts, profiles, orders, reviews, returns and uploaded photos use the existing Supabase project. Browser-only sample records are not imported. Owner: `adityaraj3532@gmail.com`. Real email verification is required for protected actions; guests can browse products.
 
-Start the FastAPI development server:
+**Email setup remains required:** Supabase's default email sender previously reached its quota. Configure custom SMTP in the project dashboard for reliable customer sign-in. Reconnecting the database does not reset that quota. You can verify an existing unexpired email link/code in the sign-in form.
 
-```bash
-uvicorn main:app --reload
-```
+Orders wait for owner confirmation before packing/delivery. Only cash on delivery is connected. Online payments, refunds and external courier integration remain unconnected.
 
-Once the backend is configured, the API documentation will be available at:
-
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
-
-**Note:** The backend needs a FastAPI application in `main.py` and the required packages in `requirements.txt` before it can start successfully.
-
-## 🔗 Frontend and Backend Integration
-
-The frontend will communicate with the backend through REST APIs.
-
-```text
-Customer
-   ↓
-React Native + Expo
-   ↓ HTTP Requests
-FastAPI Backend
-   ↓
-Database
-```
-
-The API base URL depends on where the app runs. For a physical mobile device, use your computer's local network IP address instead of `127.0.0.1`.
-
-## Development Guidelines
-
-- Keep frontend and backend code separate.
-- Use reusable components and modular services.
-- Validate user input on both the frontend and backend.
-- Never commit passwords, API keys, or secret environment variables.
-- Write clear commit messages.
-- Test changes before opening a pull request.
-
-## Roadmap
-
-- [x] Initialize the frontend project.
-- [x] Organize the repository for frontend and backend development.
-- [ ] Build product listing and product details screens.
-- [ ] Create FastAPI endpoints.
-- [ ] Integrate a database.
-- [ ] Implement authentication.
-- [ ] Add cart, wishlist, and order management.
-- [ ] Add payment and invoice support.
-- [ ] Develop smart shopping features.
-- [ ] Test and deploy the application.
-
-## Contributing
-
-Contributions, suggestions, and bug reports are welcome.
-
-1. Fork the repository.
-2. Create a feature branch:
-
-   ```bash
-   git checkout -b feature/your-feature
-   ```
-
-3. Make your changes and test them.
-4. Commit your changes:
-
-   ```bash
-   git add .
-   git commit -m "feat: describe your change"
-   ```
-
-5. Push your branch:
-
-   ```bash
-   git push -u origin feature/your-feature
-   ```
-
-6. Open a pull request.
-
-## License
-
-This project is distributed under the license included in the repository. See [LICENSE](LICENSE) for details.
-
----
-
-**ElectroShop** — Making electronics shopping smarter and simpler.
+See [database and email setup](frontend/supabase/README.md). Run `npm run check` and `npm test` to validate syntax, mocked email guards and live public/private API boundaries. Tests do not send emails.
