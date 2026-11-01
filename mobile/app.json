@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Dev Computer",
+    "slug": "dev-computer",
+    "scheme": "devcomputer",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Dev Computer lets the owner upload product photographs.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.devcomputer.store"
+    }
+  }
+}

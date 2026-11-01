@@ -1,0 +1,33 @@
+begin;
+do $$
+declare owner_id uuid:=gen_random_uuid();buyer_id uuid:=gen_random_uuid();suffix text:=replace(gen_random_uuid()::text,'-','');owner_email text;buyer_email text;product jsonb;ord jsonb;again jsonb;promo jsonb;snap jsonb;pid bigint;blocked boolean;payload jsonb;
+begin
+ owner_email:='owner-'||suffix||'@example.invalid';buyer_email:='buyer-'||suffix||'@example.invalid';
+ insert into auth.users(id,aud,role,email,email_confirmed_at,created_at,updated_at) values(owner_id,'authenticated','authenticated',owner_email,now(),now(),now()),(buyer_id,'authenticated','authenticated',buyer_email,now(),now(),now());
+ insert into electroshop.roles values(owner_email,'admin');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+ product:=public.dev_computer_api('/admin/products','POST','{"name":"Rollback keyboard","brand":"Test","category":"Keyboard","price_paise":100000,"stock":5,"sku":"KB-TEST","specifications":"Mechanical, USB-C","image_url":""}');pid:=(product->>'id')::bigint;
+ assert product->>'sku'='KB-TEST' and product->>'specifications'='Mechanical, USB-C','SKU/specifications lost';
+ perform public.dev_computer_api('/admin/inventory/'||pid,'POST','{"delta":2,"reason":"Test purchase"}');
+ assert (select (data->>'stock')::int from electroshop.products where id=pid)=7,'Adjustment missing';
+ blocked:=false;begin perform public.dev_computer_api('/admin/products/'||pid,'PUT',product||'{"expected_stock":5,"stock":6}');exception when others then blocked:=sqlerrm like '%Stock changed%';end;assert blocked,'Stale edit overwrote inventory';
+ product:=public.dev_computer_api('/admin/products/'||pid,'PUT',product||'{"expected_stock":7,"stock":7}');
+ blocked:=false;begin perform public.dev_computer_api('/admin/inventory/'||pid,'POST','{"delta":-8,"reason":"Test excessive"}');exception when others then blocked:=true;end;assert blocked,'Negative stock accepted';
+ promo:=public.dev_computer_api('/admin/promotions','POST','{"kind":"Offer","title":"Rollback offer","description":"Temporary test offer","published":false,"featured":true}');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',buyer_id,'role','authenticated')::text,true);
+ snap:=public.dev_computer_api('/snapshot');assert not (snap->'promotions' @> jsonb_build_array(jsonb_build_object('id',promo->>'id'))),'Draft leaked';
+ blocked:=false;begin perform public.dev_computer_api('/admin/inventory/'||pid,'POST','{"delta":1,"reason":"Unauthorized"}');exception when others then blocked:=true;end;assert blocked,'Customer changed inventory';
+ blocked:=false;begin perform public.dev_computer_api('/admin/audit');exception when others then blocked:=true;end;assert blocked,'Customer read audit';
+ payload:=jsonb_build_object('name','Test buyer','phone','9876543210','address','Temporary test address, Jaipur 302001','payment_method','COD','checkout_key','rollback-request-'||suffix,'items',jsonb_build_array(jsonb_build_object('product_id',pid,'quantity',2)),'total_paise',1);
+ ord:=public.dev_computer_api('/orders','POST',payload);again:=public.dev_computer_api('/orders','POST',payload);
+ assert ord->>'id'=again->>'id','Retry created duplicate order';assert (ord->>'total_paise')::bigint=200000,'Client set total';assert ord->>'status'='Placed','Order skipped owner confirmation';
+ assert (select (data->>'stock')::int from electroshop.products where id=pid)=5,'Retry reserved stock twice';
+ blocked:=false;begin perform public.dev_computer_api('/orders','POST',payload||'{"name":"Changed"}');exception when others then blocked:=sqlerrm like '%reused%';end;assert blocked,'Key reused for a different order';
+ perform public.dev_computer_api('/orders/'||(ord->>'id')||'/cancel','POST');perform public.dev_computer_api('/orders/'||(ord->>'id')||'/cancel','POST');assert (select (data->>'stock')::int from electroshop.products where id=pid)=7,'Cancellation restocked twice';
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+ assert jsonb_array_length(public.dev_computer_api('/admin/audit'))>=4,'Audit missing';
+ perform public.dev_computer_api('/admin/promotions/'||(promo->>'id'),'PUT',promo||'{"published":true}');
+ perform set_config('request.jwt.claims','{}',true);snap:=public.dev_computer_api('/snapshot');assert snap->'promotions' @> jsonb_build_array(jsonb_build_object('id',promo->>'id')),'Published offer invisible';assert snap->'orders'='[]','Anonymous orders leaked';
+end;$$;
+rollback;
+select 'PASS: Dev Computer SKU/specifications, owner access, atomic adjustments, stale-edit guard, promotion visibility, idempotent checkout, cancellation restock and audit logs' as result;

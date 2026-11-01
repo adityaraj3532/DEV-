@@ -1,2 +1,2 @@
-// Supabase disconnected: the active app uses browser-local data only.
-import './local-app.js';
+// Dev Computer: authenticated, shared Supabase application.
+import './app.js';
