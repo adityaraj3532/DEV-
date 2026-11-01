@@ -5,7 +5,7 @@ The default UI now opens a browser-only preview without email or OTP:
 - Owner: `http://localhost:8080/?portal=admin`
 - Delivery: `http://localhost:8080/?portal=delivery`
 
-All preview inventory, photos, profiles and orders are sample/browser-local data, shared between portals on the same browser and origin. Use sample personal details. Nothing is sent to Supabase and no real payments are processed. Use `?mode=live` (or `?mode=live&portal=admin`) for the protected real shop. To restore live mode as default later, change `src/entry.js` and rebuild. This applies to `demo/`, not the older Expo frontend.
+All preview inventory, photos, profiles and orders are sample/browser-local data, shared between portals on the same browser and origin. Use sample personal details. Nothing is sent to Supabase and no real payments are processed. Supabase is disconnected for every URL, including `?mode=live`. The built app contains no Supabase client or project configuration. Integration source and SQL are retained for later reconnection; existing remote data is untouched. This applies to `demo/`, not the older Expo frontend.
 
 Run from `demo/`:
 ```powershell

@@ -313,4 +313,4 @@ function reviewForm(orderId,productId){
 }
 
 document.querySelector('main > .card').remove();
-const previewNotice=document.createElement('div');previewNotice.className='notice';previewNotice.innerHTML='<strong>Temporary preview · No email needed</strong><p>Sample data is saved only in this browser. Products, orders and payments here do not affect the real shop.</p><a href="/?portal=customer">Customer portal</a> · <a href="/?portal=admin">Owner portal</a> · <a href="/?portal=delivery">Delivery portal</a> · <a href="/?mode=live">Open real Supabase shop</a>';document.querySelector('main')?.prepend(previewNotice) || document.body.prepend(previewNotice);
+const previewNotice=document.createElement('div');previewNotice.className='notice';previewNotice.innerHTML='<strong>Supabase disconnected · No login needed</strong><p>Sample data is saved only in this browser. Products, orders and payments here do not affect the real shop.</p><a href="/?portal=customer">Customer portal</a> · <a href="/?portal=admin">Owner portal</a> · <a href="/?portal=delivery">Delivery portal</a>';document.querySelector('main')?.prepend(previewNotice) || document.body.prepend(previewNotice);

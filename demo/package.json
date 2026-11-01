@@ -6,8 +6,9 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "check": "node --check src/app.js",
-    "test": "node checks/live-rest.mjs",
-    "test:email": "node checks/email-auth.mjs"
+    "check": "node --check src/entry.js && node --check src/preview.js",
+    "test": "node checks/preview-confirmation.cjs && node checks/preview-returns-reviews.cjs",
+    "test:email": "node checks/email-auth.mjs",
+    "test:live": "node checks/live-rest.mjs"
   }
 }
