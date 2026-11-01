@@ -1,2 +1,2 @@
-// ElectroShop main application: real Supabase Auth, Database and Storage.
-import './app.js';
+// Supabase disconnected: the active app uses browser-local data only.
+import './local-app.js';

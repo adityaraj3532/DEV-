@@ -6,10 +6,11 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "check": "node --check src/entry.js && node --check src/app.js && node --check src/email-auth.js",
-    "test": "node checks/email-auth.mjs && node checks/live-rest.mjs",
+    "check": "node --check src/entry.js && node --check src/local-app.js",
+    "test": "node checks/local-confirmation.cjs && node checks/local-returns-reviews.cjs",
     "test:email": "node checks/email-auth.mjs",
-    "start": "node serve.mjs"
+    "start": "node serve.mjs",
+    "test:live": "node checks/live-rest.mjs"
   },
   "name": "electroshop-frontend"
 }
