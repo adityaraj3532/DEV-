@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const source=await readFile(new URL('../src/promotions.js',import.meta.url),'utf8');
+const {promotionStatus,validatePromotion}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const p=validatePromotion({kind:'Offer',title:' Sale ',description:'Weekend offer',published:true,start:'2026-11-01',end:'2026-11-03'});
+assert.equal(p.title,'Sale');
+assert.equal(promotionStatus(p,'2026-10-31'),'Scheduled');
+assert.equal(promotionStatus(p,'2026-11-01'),'Active');
+assert.equal(promotionStatus(p,'2026-11-03'),'Active');
+assert.equal(promotionStatus(p,'2026-11-04'),'Expired');
+assert.equal(promotionStatus({...p,published:false},'2026-11-02'),'Draft');
+assert.throws(()=>validatePromotion({...p,start:'2026-11-04'}),/End date/);
+assert.throws(()=>validatePromotion({...p,end:'2026-02-30'}),/valid date/);
+assert.throws(()=>validatePromotion({...p,title:' '}),/title/);
+console.log('PASS: promotion validation, scheduling, draft visibility and inclusive expiry');
