@@ -12,3 +12,7 @@ The Supabase-connected browser app is in `demo/` (the historical directory name 
 - Online payment collection/refunds and external courier syncing remain unconnected. The connected server only accepts COD.
 
 The legacy Expo/FastAPI code has not been integrated into this browser app. Earlier checks for that code passed and it was not changed in this update.
+
+## Email limit handling update
+
+Supabase logs confirmed 429 `over_email_send_rate_limit`. No server quota or SMTP credentials were changed. Login now offers verification without sending a new email, blocks duplicate/in-flight requests, rejects inactive demo emails locally, and persists a 60-second resend guard. Mock Auth tests passed without sending real emails; the browser showed both email-request and verification forms immediately. The app cooldown is not a claim that Supabase's server quota has reset. The remaining operational fix is custom SMTP / email-limit configuration in the project dashboard.

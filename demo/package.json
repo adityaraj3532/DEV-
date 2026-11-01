@@ -7,6 +7,7 @@
   "scripts": {
     "build": "node build.mjs",
     "check": "node --check src/app.js",
-    "test": "node checks/live-rest.mjs"
+    "test": "node checks/live-rest.mjs",
+    "test:email": "node checks/email-auth.mjs"
   }
 }

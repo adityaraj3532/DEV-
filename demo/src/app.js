@@ -1,4 +1,7 @@
 import { supabase } from './supabase-client.js';
+import { createEmailSender } from './email-auth.js';
+const emailSender=createEmailSender(supabase.auth,localStorage);
+let loginTicker=null;
 'use strict';
 let user=null, products=[], cart={}, editing=null;
 const view=document.querySelector('#view'), nav=document.querySelector('#navigation');
@@ -46,10 +49,7 @@ function returnLabel(item){return item.returnable?`Returnable within ${item.retu
 function ratingSummary(id){const r=(state.reviews||[]).filter(r=>r.product_id===+id);return r.length?`${(r.reduce((n,r)=>n+r.rating,0)/r.length).toFixed(1)} ★ (${r.length} ${r.length===1?'review':'reviews'})`:'No reviews yet';}
 function canReturn(order,item){return order.status==='Delivered'&&item.returnable&&order.delivered_at&&Date.now()/1000<=order.delivered_at+(item.return_days||7)*86400;}
 async function api(path,method='GET',body){
- if(path==='/auth/request-otp'){
-  const {error}=await supabase.auth.signInWithOtp({email:body.email.trim().toLowerCase(),options:{emailRedirectTo:location.origin+(adminPath?'/?portal=admin':deliveryPath?'/?portal=delivery':'/')}});if(error)throw Error(error.message);
-  return {message:'Check your email. Enter its code below, or copy the sign-in link from the email into the same field. Email delivery depends on this project’s SMTP settings.'};
- }
+ if(path==='/auth/request-otp')return emailSender.send(body.email,{emailRedirectTo:location.origin+(adminPath?'/?portal=admin':deliveryPath?'/?portal=delivery':'/')});
  if(path==='/auth/verify-otp'){
   let params={email:body.email.trim().toLowerCase(),token:body.code.trim(),type:'email'};
   if(body.code.trim().startsWith('https://')){const url=new URL(body.code.trim());if(url.origin!=='https://fdtbmtfcueyfdlwvtrkb.supabase.co')throw Error('Use the verification link sent by this Supabase project.');const token=url.searchParams.get('token_hash')||url.searchParams.get('token');const type=url.searchParams.get('type');if(!token||!['email','magiclink','signup'].includes(type))throw Error('This is not a valid sign-in link.');params={token_hash:token,type};}
@@ -87,9 +87,13 @@ function navigation(){
 }
 
 function login(destination='shop'){
- message('');view.innerHTML=`<section class="card"><h2>${deliveryPath?'Delivery partner':adminPath?'Owner':'Customer'} sign in</h2><p class="muted">Sign in with your real email account. Roles are checked by Supabase; demo emails and code 123456 no longer work.</p><form id="emailForm"><label>Email<input name="email" type="email" required autocomplete="email" value="${esc(user?.email||'')}"></label><button>Send sign-in email</button></form><form id="codeForm" class="hidden"><label>Email code or sign-in link<input name="code" required autocomplete="one-time-code" placeholder="Code, or paste the verification link from your email"></label><button>Verify and sign in</button><button id="restart" type="button" class="secondary">Change email / resend</button></form><p class="muted">The owner account is adityaraj3532@gmail.com. A delivery partner must sign in once before the owner can assign work to their email.</p></section>`;
- let email='';document.querySelector('#emailForm').onsubmit=action(async e=>{email=new FormData(e.target).get('email');const r=await api('/auth/request-otp','POST',{email});e.target.classList.add('hidden');document.querySelector('#codeForm').classList.remove('hidden');message(r.message);});document.querySelector('#restart').onclick=()=>login(destination);
- document.querySelector('#codeForm').onsubmit=action(async e=>{user=await api('/auth/verify-otp','POST',{email,code:new FormData(e.target).get('code')});mergeGuest();await flushSaves();restoreCart();history.replaceState(null,'',deliveryPath?'/?portal=delivery':adminPath?'/?portal=admin':'/');navigation();if(destination==='profile')profileView();else if(destination==='orders'||deliveryPath)await orders();else if(destination==='checkout')checkoutForm();else await shop();message('Signed in to your Supabase account.');});
+ if(loginTicker)clearInterval(loginTicker);message('');
+ view.innerHTML=`<section class="card"><h2>${deliveryPath?'Delivery partner':adminPath?'Owner':'Customer'} sign in</h2><p class="muted">Use your real email. Demo accounts and code 123456 are not valid.</p><form id="emailForm"><label>Email<input id="loginEmail" name="email" type="email" required autocomplete="email" value="${esc(user?.email||sessionStorage.getItem('electroshop-last-email')||'')}"></label><button id="sendEmail">Send sign-in email</button><p id="sendEmailStatus" role="status" class="muted"></p></form><div id="emailServiceHelp" class="notice" hidden><strong>Email sending is temporarily blocked</strong><p>A resend timer cannot reset Supabase’s server quota. If you already received an email, verify its code or link below. Otherwise the owner needs to configure an email provider in Supabase.</p><a href="https://supabase.com/dashboard/project/fdtbmtfcueyfdlwvtrkb/auth/smtp" target="_blank" rel="noopener">Open Supabase SMTP settings</a></div><hr><h3>Already received an email?</h3><form id="codeForm"><label>Email code or verification link<input name="code" required autocomplete="one-time-code" placeholder="Enter the code or paste the Supabase verification link"></label><button>Verify and sign in</button></form><p class="muted">You can verify an existing email without sending another one. Expired codes or links will still need a new email.</p><small>Owner account: adityaraj3532@gmail.com</small></section>`;
+ const input=document.querySelector('#loginEmail'),button=document.querySelector('#sendEmail'),hint=document.querySelector('#sendEmailStatus');
+ const renderCooldown=()=>{if(!document.contains(button)){clearInterval(loginTicker);loginTicker=null;return;}const seconds=emailSender.remaining();button.disabled=emailSender.isSending()||seconds>0;button.textContent=emailSender.isSending()?'Requesting email…':seconds?`Resend available in ${seconds}s`:'Send sign-in email';hint.textContent=seconds?'You can enter an existing code or verification link below. Supabase may enforce a longer email quota.':'';};
+ renderCooldown();loginTicker=setInterval(renderCooldown,1000);
+ document.querySelector('#emailForm').onsubmit=async e=>{e.preventDefault();if(emailSender.isSending()||emailSender.remaining())return;sessionStorage.setItem('electroshop-last-email',input.value.trim());try{const pending=api('/auth/request-otp','POST',{email:input.value});renderCooldown();const result=await pending;message(result.message);}catch(err){message(err.message);if(err.code==='email_limit'){const help=document.querySelector('#emailServiceHelp');if(help)help.hidden=false;}}finally{renderCooldown();}};
+ document.querySelector('#codeForm').onsubmit=action(async e=>{if(!input.reportValidity())return;user=await api('/auth/verify-otp','POST',{email:input.value,code:new FormData(e.target).get('code')});clearInterval(loginTicker);loginTicker=null;mergeGuest();await flushSaves();restoreCart();history.replaceState(null,'',deliveryPath?'/?portal=delivery':adminPath?'/?portal=admin':'/');navigation();if(destination==='profile')profileView();else if(destination==='orders'||deliveryPath)await orders();else if(destination==='checkout')checkoutForm();else await shop();message('Signed in to your Supabase account.');});
 }
 
 async function shop(){

@@ -36,3 +36,11 @@ Verification completed:
 - Supabase security advisor reported no new ElectroShop findings. One pre-existing INFO notice remains for the unrelated SAFE Route table's RLS-without-policy configuration; it was not changed.
 
 Real online payments, refunds and external courier API integration remain unconnected. Only cash on delivery is accepted by the connected server. The original Expo app and legacy FastAPI/SQLite prototype remain separate; use the hosted browser app for this Supabase integration.
+
+## Email rate-limit troubleshooting
+
+Auth logs confirmed `429 over_email_send_rate_limit` during sign-in. The application now prevents duplicate/in-flight sends, adds a persistent 60-second resend guard, and always exposes verification of an already-received email without another send. This client-side guard does not reset or bypass Supabase's project email quota.
+
+For the real fix, configure a production SMTP provider in the project's Authentication email settings, then review Authentication > Rate Limits. Default SMTP is limited and is not for a live customer shop. Keep email confirmation enabled. No SMTP credentials were supplied or changed by this update.
+
+Official setup: https://supabase.com/docs/guides/auth/auth-smtp
