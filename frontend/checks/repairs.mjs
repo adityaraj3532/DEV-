@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const code=await readFile(new URL('../src/repairs.js',import.meta.url),'utf8');
+const {createRepair,updateRepair}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const r=createRepair({item:'Laptop',problem:'Screen is not turning on',photo:'data:image/jpeg;base64,AA=='},'customer@demo.com',12345);
+assert.match(r.id,/^REP-/);assert.equal(r.status,'Requested');assert.equal(r.price_paise,null);
+assert.throws(()=>createRepair({item:'PC',problem:'x',photo:''},'c'));
+assert.throws(()=>updateRepair(r,{status:'Ready for pickup',price:'500',message:''},'customer'));
+assert.throws(()=>updateRepair(r,{status:'Ready for pickup',price:'-1',message:''},'admin'));
+const next=updateRepair(r,{status:'Ready for pickup',price:'499.50',message:'Collect tomorrow'},'admin',45678);
+assert.equal(next.price_paise,49950);assert.equal(next.messages.length,2);assert.match(next.messages[1].text,/ready for pickup/);assert.equal(r.messages.length,0);
+assert.equal(updateRepair(next,{status:'Ready for pickup',price:'499.50',message:''},'admin').messages.length,2);
+console.log('PASS: repair submission, unique ID, photo validation, owner authorization, price validation and ready-for-pickup messages');

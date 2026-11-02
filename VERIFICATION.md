@@ -17,3 +17,7 @@ Browser QA covered the desktop storefront, a 360px mobile preview, wishlist togg
 ## Search, cart feedback and receipts
 
 Passed root check/build/test, including receipt totals, completion gating and escaping checks. Browser QA verified camera search hides banners/categories and clearing restores them, add changes to an added tick/count, and a sample COD order proceeds through owner confirmation and delivery to the receipt view with snapshot totals and download/print controls. Receipt is generated only after Delivered, with no unverified paid or GST claims.
+
+## Repair Centre, quantity buttons and locations
+
+Browser QA submitted an item photo/problem, verified a unique REP ID, updated the repair as owner to Ready for pickup with a ₹499 price and custom collection message, then verified both messages and price in the customer portal. Quick add displays quantity and toast computes fixed bottom:100px. Photon area lookup returned Mansarovar results and selection succeeded with hidden coordinate inputs. GPS permission was not requested. Unit tests cover repair validation, owner-only updates, price checks and ready-message deduplication. All existing suites passed.

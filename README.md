@@ -31,3 +31,7 @@ The delivery portal separates incoming requests and accepted jobs. The partner a
 Supabase stays disconnected: requests and location updates are saved in this browser, shared across tabs on the same origin. This does not track another person's phone or sync between devices. GPS requires browser permission and HTTPS (or localhost); no fake GPS positions are generated.
 
 Search shows matching products directly below the search box and hides the banner/categories until cleared. Added products show a tick; successful additions animate the cart once. Delivered orders expose an app-generated receipt to their customer and owner, downloadable as HTML or printable / saveable as PDF. These local receipts are not payment confirmations or GST invoices.
+
+Repair Centre: customers upload an item photo and describe the problem to receive a REP tracking ID. Owners set repair status and price and send in-app messages; Ready for pickup adds a collection message. Repairs and delivery updates remain browser-local while Supabase is disconnected. No SMS/WhatsApp is sent.
+
+Location forms use area/city/landmark search (Photon/OpenStreetMap), current GPS or map selection, with no visible coordinate fields. Area searches require internet and the chosen place is approximate; manual area updates are distinguished from live GPS. Live tracking still needs the delivery partner to allow GPS and keep the tracking screen open.
