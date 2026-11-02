@@ -9,7 +9,7 @@
   "scripts": {
     "build": "node build.mjs",
     "check": "node --check src/entry.js && node --check src/local-app.js && node --check src/delivery.js && node --check src/delivery-map.js",
-    "test": "node checks/local-confirmation.cjs && node checks/local-returns-reviews.cjs && node checks/promotions.mjs && node checks/delivery.cjs",
+    "test": "node checks/local-confirmation.cjs && node checks/local-returns-reviews.cjs && node checks/promotions.mjs && node checks/delivery.cjs && node checks/receipt.mjs",
     "test:email": "node checks/email-auth.mjs",
     "start": "node serve.mjs",
     "test:live": "node checks/live-rest.mjs"

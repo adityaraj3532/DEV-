@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const source=await readFile(new URL('../src/receipt.js',import.meta.url),'utf8');
+const {receiptData,receiptDocument}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const order={id:'TEST-1',name:'<script>alert(1)</script>',phone:'9876543210',address:'Test address',created:1700000000,delivered_at:1700100000,status:'Delivered',payment_method:'COD',total_paise:54900,items:[{name:'Cable & adapter',quantity:2,price_paise:25000}]};
+assert.deepEqual(receiptData(order),{id:'DC-TEST-1',subtotal:50000,delivery:4900,total:54900,issued:1700100000});
+assert.throws(()=>receiptData({...order,status:'Placed'}),/after delivery/);
+assert.throws(()=>receiptData({...order,total_paise:1}),/Invalid order total/);
+const html=receiptDocument(order);assert.ok(html.includes('&lt;script&gt;'));assert.ok(!html.includes('<script>alert'));assert.ok(html.includes('Cable &amp; adapter'));assert.ok(html.includes('Not recorded'));assert.ok(html.includes('not proof of payment'));assert.ok(!html.includes('Payment received'));
+console.log('PASS: completed-order receipt eligibility, saved-price totals, delivery fee, safe HTML and truthful COD payment status');

@@ -13,3 +13,7 @@ The street map rendered successfully using OpenFreeMap vector tiles through Leaf
 Branding changed to Dev Computer. The reference-inspired mobile storefront uses a dark forest background, lime inline SVG icons, promotional hero artwork, six compact categories, two-column product cards and a fixed five-action bottom navigation. Desktop and owner/delivery screens use the same palette. Product photos supplied by the owner take priority over generic local SVG illustrations. No discount percentages, crossed-out prices or return policies were invented to match the sample image.
 
 Browser QA covered the desktop storefront, a 360px mobile preview, wishlist toggle, quick-add/cart navigation and owner promotion form. Existing order, return/review, offer and delivery tests pass. Supabase remains disconnected and the existing browser storage key/data are preserved.
+
+## Search, cart feedback and receipts
+
+Passed root check/build/test, including receipt totals, completion gating and escaping checks. Browser QA verified camera search hides banners/categories and clearing restores them, add changes to an added tick/count, and a sample COD order proceeds through owner confirmation and delivery to the receipt view with snapshot totals and download/print controls. Receipt is generated only after Delivered, with no unverified paid or GST claims.
