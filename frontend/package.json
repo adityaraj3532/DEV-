@@ -1,13 +1,15 @@
 {
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "leaflet": "1.9.4",
+    "leaflet.vectorgrid": "1.3.0"
   },
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "check": "node --check src/entry.js && node --check src/local-app.js",
-    "test": "node checks/local-confirmation.cjs && node checks/local-returns-reviews.cjs && node checks/promotions.mjs",
+    "check": "node --check src/entry.js && node --check src/local-app.js && node --check src/delivery.js && node --check src/delivery-map.js",
+    "test": "node checks/local-confirmation.cjs && node checks/local-returns-reviews.cjs && node checks/promotions.mjs && node checks/delivery.cjs",
     "test:email": "node checks/email-auth.mjs",
     "start": "node serve.mjs",
     "test:live": "node checks/live-rest.mjs"

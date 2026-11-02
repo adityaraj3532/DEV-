@@ -2,7 +2,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const source=fs.readFileSync('src/local-app.js','utf8');const code=source.slice(source.indexOf('function canReturn('),source.indexOf('\nfunction action('));
 const buyer={email:'buyer@demo.com',role:'customer'},owner={email:'owner@demo.com',role:'admin'};
 const ctx={user:buyer,state:{products:[{id:1,name:'Camera',price_paise:10000,stock:5,active:1,returnable:true,return_days:7},{id:2,name:'Charger',price_paise:1000,stock:3,active:1,returnable:false}],orders:[],reviews:[],returns:[]},save(){}};vm.createContext(ctx);vm.runInContext(code,ctx);
-(async()=>{
+(async()=>{Object.assign(ctx,await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('src/delivery.js','utf8')).toString('base64')));
 const o=await ctx.api('/orders','POST',{items:[{product_id:1,quantity:1},{product_id:2,quantity:1}]});ctx.state.products[0].returnable=false;assert.equal(o.items[0].returnable,true,'Checkout freezes return policy');
 await assert.rejects(()=>ctx.api('/reviews','POST',{order_id:o.id,product_id:1,rating:5,text:'Good'}),/delivered/);
 ctx.user=owner;for(const status of ['Confirmed','Shipped','Delivered'])await ctx.api('/admin/orders/'+o.id,'PUT',{status});assert.ok(o.delivered_at);

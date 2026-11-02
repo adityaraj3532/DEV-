@@ -1,7 +1,7 @@
 const fs=require('node:fs');const vm=require('node:vm');const assert=require('node:assert/strict');
 const source=fs.readFileSync('src/local-app.js','utf8');const apiCode=source.slice(source.indexOf('async function api('),source.indexOf('\nfunction action('));
 const ctx={user:{email:'owner@demo.com',role:'admin'},state:{products:[{id:1,name:'Laptop',price_paise:10000,stock:3,active:1}],orders:[]},save(){},sessionStorage:{setItem(){},removeItem(){}}};vm.createContext(ctx);vm.runInContext(apiCode,ctx);
-(async()=>{
+(async()=>{Object.assign(ctx,await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('src/delivery.js','utf8')).toString('base64')));
 const order=await ctx.api('/orders','POST',{name:'Demo',phone:'9876543210',address:'Sample address',payment_method:'Online demo',items:[{product_id:1,quantity:1}]});
 assert.equal(order.status,'Placed','Even online-paid demo orders must await approval');
 await assert.rejects(()=>ctx.api('/admin/orders/'+order.id,'PUT',{status:'Shipped'}),/not allowed/);
@@ -11,8 +11,10 @@ order.assigned_to='delivery@demo.com';ctx.user={email:'delivery@demo.com',role:'
 assert.equal((await ctx.api('/delivery/orders')).length,0,'Pending orders hidden from delivery');
 await assert.rejects(()=>ctx.api('/delivery/orders/'+order.id,'PUT',{status:'Confirmed'}),/Only the owner/);
 ctx.user={email:'owner@demo.com',role:'admin'};await ctx.api('/admin/orders/'+order.id,'PUT',{status:'Confirmed',note:'Accepted'});assert.equal(order.status,'Confirmed');
-await ctx.api('/admin/orders/'+order.id,'PUT',{assigned_to:'delivery@demo.com',note:'Assigned'});
+await ctx.api('/admin/delivery-requests/'+order.id,'POST',{assigned_to:'delivery@demo.com',pickup_address:'Test shop, Jaipur',pickup:{lat:26.92,lng:75.82},dropoff:{lat:26.90,lng:75.80}});
 ctx.user={email:'delivery@demo.com',role:'delivery'};assert.equal((await ctx.api('/delivery/orders')).length,1);
+await assert.rejects(()=>ctx.api('/delivery/orders/'+order.id,'PUT',{status:'Shipped',note:'Too early'}),/Accept/);
+await ctx.api('/delivery/requests/'+order.id,'POST',{request_id:order.delivery_request.id,decision:'Accepted'});
 await ctx.api('/delivery/orders/'+order.id,'PUT',{status:'Shipped',note:'Dispatched'});assert.equal(order.status,'Shipped');
 ctx.user={email:'owner@demo.com',role:'admin'};const rejected=await ctx.api('/orders','POST',{items:[{product_id:1,quantity:1}]});await ctx.api('/admin/orders/'+rejected.id,'PUT',{status:'Cancelled'});assert.equal(ctx.state.products[0].stock,2,'Rejecting restores reserved stock');
 console.log('PASS: pending order locks, owner-only approval, delivery release after confirmation, rejection stock restoration');
