@@ -7,6 +7,7 @@ let user=null, products=[], cart={}, editing=null;
 const view=document.querySelector('#view'), nav=document.querySelector('#navigation');
 const adminPath=new URLSearchParams(location.search).get('portal')==='admin';
 const deliveryPath=new URLSearchParams(location.search).get('portal')==='delivery';
+document.body.classList.add(adminPath?'owner-portal':deliveryPath?'delivery-portal':'customer-portal');
 const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format(n/100);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const message=s=>document.querySelector('#message').textContent=s;
@@ -42,7 +43,8 @@ function saveCart(){savedData().cart={...cart};save();navigation();}
 function mergeGuest(){const guest=state.customers?.guest;if(!guest||!user)return;const target=savedData();target.wishlist=[...new Set([...target.wishlist,...guest.wishlist])];target.later=[...new Set([...target.later,...guest.later])];for(const [id,q] of Object.entries(guest.cart)){const p=state.products.find(p=>p.id===+id&&p.active);if(p)target.cart[id]=Math.min(p.stock,(target.cart[id]||0)+q);}delete state.customers.guest;save();}
 function toggleWish(id){const data=savedData(),has=data.wishlist.includes(+id);data.wishlist=has?data.wishlist.filter(x=>x!==+id):[...data.wishlist,+id];save();navigation();return !has;}
 function addItem(id){const p=state.products.find(p=>p.id===+id&&p.active);if(!p||p.stock<1)throw Error('This item is currently unavailable.');if((cart[id]||0)>=p.stock)throw Error('Stock limit reached');cart[id]=(cart[id]||0)+1;saveCart();message(p.name+' added to cart');}
-function itemVisual(p){return p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}">`:`<span aria-hidden="true">${icons[p.category]||icon('box')}</span>`;}
+function productArt(p){return p.image_url||({Laptop:'/assets/laptop.svg',Headphone:'/assets/headphones.svg'})[p.category]||'';}
+function itemVisual(p){return productArt(p)?`<img src="${esc(productArt(p))}" alt="${esc(p.name)}">`:`<span aria-hidden="true">${icons[p.category]||icon('box')}</span>`;}
 
 state.reviews??=[];state.returns??=[];
 function returnLabel(item){return item.returnable?`Returnable within ${item.return_days||7} days of delivery`:'Not returnable';}
@@ -130,6 +132,7 @@ throw Error('Unknown demo action');
 }
 function action(fn){return async e=>{e?.preventDefault();const button=e?.submitter||e?.currentTarget;if(button?.tagName==='BUTTON')button.disabled=true;try{await fn(e);}catch(err){message(err.message);}finally{if(button?.tagName==='BUTTON')button.disabled=false;}};}
 function navigation(){
+ const selectedNav=nav.querySelector('[aria-current="page"]')?.id||'navShop';
  const isAdmin=adminPath&&user?.role==='admin',isDelivery=deliveryPath&&user?.role==='delivery',qty=Object.values(cart).reduce((a,b)=>a+b,0);
  nav.innerHTML=isDelivery?'<button id="orders">Requests & deliveries</button><button id="navProfile" class="secondary">Profile</button><button id="logout" class="secondary">Re-enter portal</button>':isAdmin?`<button id="navShop" class="secondary">Products</button><button id="orders">Orders</button><button id="navStock" class="secondary">Stock</button><button id="logout" class="secondary">Re-enter portal</button>`:`<button id="navShop" class="secondary">Shop</button><button id="navWishlist" class="secondary">Wishlist (${savedData().wishlist.length})</button><button id="navCart" class="secondary">Cart (${qty})</button><button id="orders" class="secondary">My Orders</button><button id="navProfile" class="secondary">Profile</button>${user?'<button id="logout" class="secondary">Re-enter portal</button>':'<button id="login">Log in</button>'}`;
  if(!isDelivery){nav.insertAdjacentHTML('beforeend',`<button id="navOffers" class="secondary">${isAdmin?'Manage offers':'Offers & events'}</button>`);document.querySelector('#navOffers').onclick=()=>offersView();}
@@ -138,8 +141,11 @@ function navigation(){
  document.querySelector('#orders').onclick=action(async()=>{if(!user){message('Log in to see your orders.');login('orders');return;}await orders();});
  if(isAdmin)document.querySelector('#navStock').onclick=stockView;
  else if(!isDelivery){document.querySelector('#navWishlist').onclick=()=>collectionView('wishlist');document.querySelector('#navCart').onclick=action(async()=>{products=await api('/products');cartView();});}
+ const navIcons={navShop:'shop',navWishlist:'heart',navCart:'bag',orders:'box',navProfile:'user',navStock:'box',navOffers:'gift',logout:'user'};nav.querySelectorAll('button').forEach(b=>{const text=b.textContent.replace('My Orders','Orders');b.innerHTML=icon(navIcons[b.id]||'shop')+'<span>'+esc(text)+'</span>';});
+ document.querySelector('#headerOffers').onclick=()=>offersView();
  if(user)document.querySelector('#logout').onclick=action(async()=>{await api('/auth/logout','POST');user=null;restoreCart();navigation();await shop();});
  else document.querySelector('#login').onclick=()=>login();
+ selectNav(selectedNav);
 }
 
 function login(destination='shop'){
@@ -149,12 +155,16 @@ function login(destination='shop'){
 }
 
 async function shop(){
+ selectNav('navShop');
  if(deliveryPath){if(!user||user.role!=='delivery'){login();return;}await orders();return;}
  products=await api('/products');
  if(adminPath){if(!user){login();return;}if(user.role!=='admin'){view.innerHTML='<div class="card"><h2>Owner access required</h2><p>Click Try owner login above to preview the owner portal.</p></div>';return;}}
- view.innerHTML=`${promotionBanner()}<h2>${adminPath?'Manage your shop':'Find your next upgrade.'}</h2><p class="muted">${adminPath?'Add photos, set brands and prices, and manage your inventory.':'Explore electronics by category, brand, and budget.'}</p><div class="category-tabs" role="group" aria-label="Product categories"><button data-category="" class="selected">All items</button>${categories.filter(c=>c!=='Other').map(c=>`<button data-category="${c}" class="secondary">${icons[c]} ${categoryLabels[c]}</button>`).join('')}</div><div class="card filters"><label>Search<input id="search" placeholder="Search electronics…"></label><label>Company / Brand<select id="brand"><option value="">All companies</option>${[...new Set(products.map(p=>p.brand||'Other'))].sort().map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('')}</select></label><label>Min price (₹)<input id="minPrice" type="number" min="0" placeholder="0"></label><label>Max price (₹)<input id="maxPrice" type="number" min="0" placeholder="Any price"></label><label>Sort by<select id="sort"><option value="featured">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select></label><button id="clearFilters" class="secondary">Clear filters</button></div><div class="row" style="justify-content:space-between;margin-bottom:20px"><span id="resultCount" class="muted" role="status"></span>${adminPath?'<button id="newProduct">＋ Add product</button>':'<button id="cart">View cart</button>'}</div><div id="catalog"></div>`;
- const offersButton=document.querySelector('#bannerOffers');if(offersButton)offersButton.onclick=()=>offersView();
- let category='';
+ view.innerHTML=`<div class="shop-search"><span>${icon('search')}</span><input id="search" placeholder="Search your next upgrade" aria-label="Search electronics"><button id="filterToggle" class="icon-button" aria-label="Show product filters" aria-expanded="${adminPath?'true':'false'}">${icon('filter')}</button></div>${promotionBanner()}<div class="section-bar"><h2>${adminPath?'Manage your shop':'Shop by category'}</h2><button class="subtle-link" id="allCategories">View all ${icon('arrow')}</button></div><div class="category-tabs" role="group" aria-label="Product categories"><button data-category="" class="selected"><span class="category-icon">${icon('box')}</span><span>All items</span></button>${categories.filter(c=>c!=='Other').map(c=>`<button data-category="${c}" class="secondary"><span class="category-icon">${icons[c]}</span><span>${categoryLabels[c]}</span></button>`).join('')}</div><div id="advancedFilters" ${adminPath?'':'hidden'}><div class="card filters"><label>Company / Brand<select id="brand"><option value="">All companies</option>${[...new Set(products.map(p=>p.brand||'Other'))].sort().map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('')}</select></label><label>Min price (₹)<input id="minPrice" type="number" min="0" placeholder="0"></label><label>Max price (₹)<input id="maxPrice" type="number" min="0" placeholder="Any price"></label><label>Sort by<select id="sort"><option value="featured">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select></label><button id="clearFilters" class="secondary">Clear filters</button></div></div><div class="section-bar"><h2>${adminPath?'Your inventory':'The curated edit'}</h2>${adminPath?'<button id="newProduct">'+icon('plus')+' Add product</button>':'<button id="viewAllProducts" class="subtle-link">View all '+icon('arrow')+'</button>'}</div><div class="catalog-meta"><span id="resultCount" class="muted" role="status"></span>${adminPath?'':'<button id="cart" class="subtle-link">View cart '+icon('bag')+'</button>'}</div><div id="catalog"></div><div class="store-promise">${icon('shield')} <span>Thoughtfully chosen tech. Personal service.</span></div>`;
+ document.querySelector('#filterToggle').onclick=()=>{const panel=document.querySelector('#advancedFilters');panel.hidden=!panel.hidden;document.querySelector('#filterToggle').setAttribute('aria-expanded',String(!panel.hidden));};
+ document.querySelector('#allCategories').onclick=()=>document.querySelector('[data-category=""]').click();
+ const offersButton=document.querySelector('#bannerOffers');if(offersButton)offersButton.onclick=()=>{if(!adminPath&&!state.promotions.some(p=>p.featured&&promotionStatus(p)==='Active'))document.querySelector('[data-category="Headphone"]').click();else offersView();};
+ let category='',showAll=false;
+ if(document.querySelector('#viewAllProducts'))document.querySelector('#viewAllProducts').onclick=()=>{showAll=!showAll;document.querySelector('#viewAllProducts').textContent=showAll?'Show curated edit':'View all';draw();};
  if(adminPath)document.querySelector('#newProduct').onclick=()=>productForm();else document.querySelector('#cart').onclick=cartView;
  const draw=()=>{
  const q=document.querySelector('#search').value.toLowerCase(),brand=document.querySelector('#brand').value,min=document.querySelector('#minPrice').value,max=document.querySelector('#maxPrice').value,sort=document.querySelector('#sort').value;
@@ -162,8 +172,10 @@ async function shop(){
  const filtered=products.filter(p=>(!category||p.category===category)&&(!brand||p.brand===brand)&&p.name.toLowerCase().includes(q)&&(min===''||p.price_paise>=+min*100)&&(max===''||p.price_paise<=+max*100));
  if(sort!=='featured')filtered.sort((a,b)=>sort==='low'?a.price_paise-b.price_paise:b.price_paise-a.price_paise);
  document.querySelector('#resultCount').textContent=invalid?'Minimum price must be less than maximum price.':`${filtered.length} product${filtered.length===1?'':'s'} found`;
- const card=p=>`<article class="card product-card"><div class="product-image">${p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`:`<span aria-hidden="true">${icons[p.category]||icon('box')}</span>`}</div><div class="row"><span class="brand-tag">${esc(p.brand||'Other')}</span><small>${esc(categoryLabels[p.category]||p.category)}</small></div><h3>${esc(p.name)}</h3><p class="muted description">${esc(p.description)}</p><p class="price">${money(p.price_paise)}</p><p class="muted">${p.stock} available</p><p class="policy-tag ${p.returnable?'return-yes':''}">${returnLabel(p)}</p><button class="review-link" data-view-reviews="${p.id}">${ratingSummary(p.id)} · View reviews</button>${adminPath?`<div class="row"><button data-edit="${p.id}">Edit product</button><button class="danger" data-delete="${p.id}">Remove</button></div>`:`<div class="row"><button data-add="${p.id}" ${p.stock?'':'disabled'}>${p.stock?'Add to cart':'Out of stock'}</button><button class="wish-button secondary" data-wish="${p.id}" aria-label="${savedData().wishlist.includes(p.id)?'Remove from':'Add to'} wishlist: ${esc(p.name)}" aria-pressed="${savedData().wishlist.includes(p.id)}">${icon('heart',{filled:savedData().wishlist.includes(p.id)})} ${savedData().wishlist.includes(p.id)?'Saved':'Save'}</button></div>`}</article>`;
- document.querySelector('#catalog').innerHTML=invalid?'<div class="card">Adjust your price range to see products.</div>':!filtered.length?'<div class="card"><h3>No matching products</h3><p>Try another company, category, or price range.</p></div>':category||sort!=='featured'?`<div class="grid">${filtered.map(card).join('')}</div>`:categories.map(c=>{const group=filtered.filter(p=>p.category===c);return group.length?`<section class="product-section"><h3 class="section-heading">${icons[c]} ${categoryLabels[c]} <small>${group.length} ${group.length===1?'item':'items'}</small></h3><div class="grid">${group.map(card).join('')}</div></section>`:'';}).join('');
+ const card=p=>`<article class="card product-card"><div class="product-image">${itemVisual(p)}<small class="product-tag">${p.stock?'IN STOCK':'SOLD OUT'}</small>${!adminPath?`<button class="wish-button icon-button" data-wish="${p.id}" aria-label="${savedData().wishlist.includes(p.id)?'Remove from':'Add to'} wishlist: ${esc(p.name)}" aria-pressed="${savedData().wishlist.includes(p.id)}">${icon('heart',{filled:savedData().wishlist.includes(p.id)})}</button>`:''}</div><div class="product-copy"><h3>${esc(p.name)}</h3><p class="product-spec">${esc(p.brand||categoryLabels[p.category])} · ${esc(p.description)}</p><div class="product-price-row"><p class="price">${money(p.price_paise)}</p>${!adminPath?`<button class="quick-add" data-add="${p.id}" aria-label="Add ${esc(p.name)} to cart" ${p.stock?'':'disabled'}>${icon('plus')}</button>`:''}</div><details class="product-more"><summary>Details & reviews</summary><p class="muted description">${esc(p.description)}</p><p class="muted">${p.stock} available</p><p class="policy-tag ${p.returnable?'return-yes':''}">${returnLabel(p)}</p><button class="review-link" data-view-reviews="${p.id}">${ratingSummary(p.id)} · View reviews</button></details>${adminPath?`<div class="row"><button data-edit="${p.id}">Edit</button><button class="danger" data-delete="${p.id}">Remove</button></div>`:''}</div></article>`;
+ const curated=[...filtered].sort((a,b)=>{const rank=p=>p.id===2?0:p.id===1?1:2;return rank(a)-rank(b);});
+ const visible=adminPath||showAll||category||sort!=='featured'?filtered:curated.slice(0,8);
+ document.querySelector('#catalog').innerHTML=invalid?'<div class="card">Adjust your price range to see products.</div>':!visible.length?'<div class="card"><h3>No matching products</h3><p>Try another company, category, or price range.</p></div>':`<div class="grid">${visible.map(card).join('')}</div>`;
  document.querySelectorAll('[data-view-reviews]').forEach(b=>b.onclick=action(()=>reviewsView(+b.dataset.viewReviews)));
  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=action(()=>addItem(b.dataset.add)));
  document.querySelectorAll('[data-wish]').forEach(b=>b.onclick=action(()=>{const added=toggleWish(b.dataset.wish);message(added?'Added to your wishlist':'Removed from your wishlist');draw();}));
@@ -194,6 +206,7 @@ function productForm(p={}){
 }
 
 function cartView(){
+ selectNav('navCart');
  products=state.products.filter(p=>p.active);
  const items=Object.entries(cart).filter(([id,qty])=>qty>0&&products.some(p=>p.id===+id));
  const unavailable=Object.keys(cart).filter(id=>cart[id]>0&&!products.some(p=>p.id===+id));
@@ -208,6 +221,7 @@ function cartView(){
  if(items.length)document.querySelector('#checkout').onclick=()=>{if(!user){login('checkout');message('Log in to complete your order. Your cart is saved.');return;}checkoutForm();};
 }
 function collectionView(kind='wishlist'){
+ selectNav('navWishlist');
  const data=savedData(),ids=data[kind],items=ids.map(id=>state.products.find(p=>p.id===id)).filter(Boolean);
  view.innerHTML=`<h2>${kind==='wishlist'?'Your wishlist':'Saved for later'}</h2><p class="muted">${kind==='wishlist'?'Keep your favourite products here. Saving an item does not reserve stock.':'Items you set aside from your cart. They are not included in checkout.'}</p><div class="category-tabs"><button id="wishlistTab" class="${kind==='wishlist'?'':'secondary'}">Wishlist (${data.wishlist.length})</button><button id="laterTab" class="${kind==='later'?'':'secondary'}">Saved for later (${data.later.length})</button><button id="back" class="secondary">Continue shopping</button></div><div class="grid">${items.map(p=>`<article class="card product-card"><div class="product-image">${itemVisual(p)}</div><small>${esc(p.brand)}</small><h3>${esc(p.name)}</h3><p class="price">${money(p.price_paise)}</p><p class="muted">${!p.active?'No longer sold':p.stock?p.stock+' in stock':'Out of stock'}</p><div class="row"><button data-move="${p.id}" ${p.active&&p.stock?'':'disabled'}>${kind==='later'?'Move to cart':'Add to cart'}</button><button class="secondary" data-remove-saved="${p.id}">Remove</button></div></article>`).join('')||'<div class="card"><h3>Nothing saved yet</h3><p>Tap Save on a product, or Save for later in your cart.</p></div>'}</div>`;
  document.querySelector('#wishlistTab').onclick=()=>collectionView('wishlist');document.querySelector('#laterTab').onclick=()=>collectionView('later');document.querySelector('#back').onclick=action(shop);
@@ -241,6 +255,7 @@ function paymentPreview(body){
 }
 function formatAddress(a){return `${a.line}, ${a.city}, ${a.state} ${a.pin}`;}
 function profileView(){
+ selectNav('navProfile');
  if(!user){login('profile');return;}
  const data=savedData(),profile=data.profile||{},addresses=data.addresses||[];
  view.innerHTML=`<h2>My profile</h2><p class="muted">Your personal details and delivery addresses. In this preview, details stay in this browser. Use sample information when testing.</p><div class="profile-layout"><section class="card"><h3>Personal details</h3><form id="profileForm"><label>Full name<input name="name" required minlength="2" maxlength="120" autocomplete="name" value="${esc(profile.name)}"></label><label>Email<input value="${esc(user.email)}" readonly type="email"></label><small>Email belongs to your login account.</small><label style="margin-top:15px">Mobile number<input name="phone" type="tel" pattern="[6-9][0-9]{9}" required autocomplete="tel" value="${esc(profile.phone)}"></label><button>Save personal details</button></form></section><section><div class="row" style="justify-content:space-between"><h3>Saved addresses</h3><button id="addAddress">＋ Add address</button></div>${addresses.map(a=>`<article class="card address-card"><div class="row"><h3>${esc(a.label)}</h3>${data.defaultAddress===a.id?'<span class="brand-tag">Default address</span>':''}</div><strong>${esc(a.name)}</strong><p>${esc(formatAddress(a))}</p><p>${esc(a.phone)}</p><div class="row"><button class="secondary" data-edit-address="${esc(a.id)}">Edit</button>${data.defaultAddress!==a.id?`<button class="secondary" data-default-address="${esc(a.id)}">Make default</button>`:''}<button class="text-button" data-delete-address="${esc(a.id)}">Remove</button></div></article>`).join('')||'<div class="card"><p>No saved addresses yet. Add one to make checkout faster.</p></div>'}</section></div><button id="profileShop" class="secondary">Back to shop</button><button id="profileCart" class="secondary">Go to cart</button>`;
@@ -258,6 +273,7 @@ function addressForm(a={}){
 }
 
 async function orders(){
+ selectNav('orders');
  if(!user){login('orders');return;}
  const isAdmin=adminPath&&user.role==='admin',isDriver=deliveryPath&&user.role==='delivery',manager=isAdmin||isDriver;
  const list=await api(isAdmin?'/admin/orders':isDriver?'/delivery/orders':'/orders');
@@ -342,11 +358,11 @@ function reviewForm(orderId,productId){
 }
 
 document.querySelector('main > .card').remove();
-const previewNotice=document.createElement('div');previewNotice.className='notice';previewNotice.innerHTML='<strong>Supabase disconnected · No login needed</strong><p>Sample data is saved only in this browser. Products, orders and payments here do not affect the real shop.</p><a href="/?portal=customer">Customer portal</a> · <a href="/?portal=admin">Owner portal</a> · <a href="/?portal=delivery">Delivery portal</a>';document.querySelector('main')?.prepend(previewNotice) || document.body.prepend(previewNotice);
+const previewNotice=document.createElement('div');previewNotice.className='preview-disclosure';previewNotice.innerHTML='<p>Local preview · Data stays in this browser · Supabase disconnected</p><div class="portal-links"><a href="/?portal=customer">Customer</a><a href="/?portal=admin">Owner portal</a><a href="/?portal=delivery">Delivery portal</a></div>';document.querySelector('main').append(previewNotice);
 
 function promotionBanner(){
  const active=state.promotions.filter(p=>p.featured&&promotionStatus(p)==='Active').slice(0,3);
- if(!active.length)return `<section class="ad-banner"><div><small>OFFERS & EVENTS</small><h2>More reasons to visit your tech shop.</h2><p>See our latest announcements and upcoming events.</p><button id="bannerOffers">${adminPath?'Create an offer or event':'Explore offers & events'}</button></div><span class="ad-icon" aria-hidden="true">${icon('gift')}</span></section>`;
+ if(!active.length)return `<section class="ad-banner hero-banner"><div class="hero-copy"><small>• YOUR NEXT UPGRADE</small><h2>Less noise.<br>More life.</h2><p>Find your focus. Explore everyday essentials.</p><button id="bannerOffers">${adminPath?'Create an offer':'Explore the edit'} ${icon('arrow')}</button></div><img class="hero-product" src="/assets/headphones.svg" alt="Studio green over-ear headphones illustration"></section>`;
  return `<section class="ad-banner" aria-label="Shop announcements"><div><small>OFFERS & EVENTS</small>${active.map(p=>`<article class="ad-announcement">${p.image?`<img src="${esc(p.image)}" alt="${esc(p.title)}">`:''}<div><span class="brand-tag">${esc(p.kind)}</span><h2>${esc(p.title)}</h2><p>${esc(p.description)}</p>${p.end?`<small>Through ${esc(p.end)}</small>`:''}</div></article>`).join('')}<button id="bannerOffers">View all offers & events</button></div></section>`;
 }
 function offersView(filter='All'){
@@ -440,3 +456,5 @@ function updateTracking(){
  if(geoWatch!==null&&(!canDrive(o,user)||sharingRequestId!==o.delivery_request?.id))stopSharing('Sharing stopped: this delivery is no longer active or assigned.');
 }
 window.addEventListener('storage',e=>{if(e.key!=='electroshop-direct-preview-v1')return;try{reloadLocal();if(trackingOrderId)updateTracking();else if(document.querySelector('#orderList'))orders().catch(err=>message(err.message));}catch(err){message(err.message);}});
+
+function selectNav(id){nav.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.id===id);if(b.id===id)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}

@@ -55,3 +55,6 @@ __pycache__/
 !frontend/dist/app.js
 !frontend/dist/index.html
 !frontend/dist/leaflet.css
+!frontend/dist/theme.css
+!frontend/dist/assets/
+!frontend/dist/assets/*.svg

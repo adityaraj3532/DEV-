@@ -1,5 +1,5 @@
 {
-  "name": "electroshop",
+  "name": "dev-computer",
   "private": true,
   "scripts": {
     "setup": "npm ci --prefix frontend",

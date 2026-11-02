@@ -14,5 +14,5 @@
     "start": "node serve.mjs",
     "test:live": "node checks/live-rest.mjs"
   },
-  "name": "electroshop-frontend"
+  "name": "dev-computer-frontend"
 }

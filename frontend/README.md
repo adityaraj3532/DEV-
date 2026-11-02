@@ -1,4 +1,4 @@
-# ElectroShop frontend
+# Dev Computer frontend
 
 This is the main Supabase-connected web app. See [project instructions](../README.md) and [Supabase setup](supabase/README.md).
 

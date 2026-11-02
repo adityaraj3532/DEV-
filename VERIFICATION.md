@@ -7,3 +7,9 @@ Supabase is disconnected at the application entry point. The build imports only 
 The active local app uses inline SVG icons instead of category/heart/star/gift emoji. Request tests cover owner confirmation, validated pins, accept/decline/withdraw, wrong assignee and stale request rejection, dispatch gating, location validation, bounded trails and terminal-status GPS rejection. Existing order/return/review/promotion tests remain passing. Browser QA created a local sample order, confirmed it, sent a request with map pins, accepted it as the delivery partner, and updated a labelled manual location. Real GPS permission was not requested in the remote QA browser. Supabase remains disconnected.
 
 The street map rendered successfully using OpenFreeMap vector tiles through Leaflet Canvas (no WebGL requirement). A manual delivery position update propagated to an already-open customer tracking tab through the storage event. The initial raster provider and WebGL renderer were replaced after observed preview failures.
+
+## Dev Computer dark redesign
+
+Branding changed to Dev Computer. The reference-inspired mobile storefront uses a dark forest background, lime inline SVG icons, promotional hero artwork, six compact categories, two-column product cards and a fixed five-action bottom navigation. Desktop and owner/delivery screens use the same palette. Product photos supplied by the owner take priority over generic local SVG illustrations. No discount percentages, crossed-out prices or return policies were invented to match the sample image.
+
+Browser QA covered the desktop storefront, a 360px mobile preview, wishlist toggle, quick-add/cart navigation and owner promotion form. Existing order, return/review, offer and delivery tests pass. Supabase remains disconnected and the existing browser storage key/data are preserved.

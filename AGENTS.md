@@ -1,4 +1,4 @@
-# ElectroShop development
+# Dev Computer development
 
 This repository now contains one main browser application in `frontend/`, built with JavaScript and esbuild; Supabase is currently disconnected. The Expo and FastAPI prototypes were removed at the user's request.
 
