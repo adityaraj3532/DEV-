@@ -21,3 +21,7 @@ Passed root check/build/test, including receipt totals, completion gating and es
 ## Repair Centre, quantity buttons and locations
 
 Browser QA submitted an item photo/problem, verified a unique REP ID, updated the repair as owner to Ready for pickup with a ₹499 price and custom collection message, then verified both messages and price in the customer portal. Quick add displays quantity and toast computes fixed bottom:100px. Photon area lookup returned Mansarovar results and selection succeeded with hidden coordinate inputs. GPS permission was not requested. Unit tests cover repair validation, owner-only updates, price checks and ready-message deduplication. All existing suites passed.
+
+## Custom categories and icon contrast
+
+Browser QA created Monitors, opened Add item with Monitors preselected, and saved QA Display 24 at ₹9,999 with stock 3. The custom category appeared in the customer catalogue. Selected Camera SVG computed dark rgb(23,36,17) on lime rgb(199,255,151), resolving the inherited lime-on-lime icon issue. Root check/build/test passed.

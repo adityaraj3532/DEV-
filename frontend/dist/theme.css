@@ -32,3 +32,10 @@ html{background:var(--bg);scroll-behavior:smooth}body{background:var(--bg);color
 .category-tabs button[data-category] .category-icon{color:var(--muted);background:var(--raised);border:1px solid var(--line)}
 .category-tabs button[data-category].selected{color:var(--accent)}
 .category-tabs button[data-category].selected .category-icon{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+/* Explicit SVG colours keep selected category icons readable. */
+.category-tabs button[data-category] .category-icon .ui-icon{color:#b7c8bd;opacity:1;stroke-width:1.7}
+.category-tabs button[data-category].selected .category-icon{background:#b6f783;border-color:#b6f783;box-shadow:0 0 0 2px #b6f78330}
+.category-tabs button[data-category].selected .category-icon .ui-icon{color:#172411;opacity:1;stroke-width:1.9}
+.category-tabs button[data-category].selected:hover .category-icon{background:#c7ff97}
+@media(max-width:600px){.category-tabs[aria-label="Product categories"]{grid-template-columns:repeat(auto-fit,minmax(46px,1fr));row-gap:16px}}
