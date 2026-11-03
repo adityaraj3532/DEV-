@@ -1,0 +1,6 @@
+{
+  "appId": "com.devcomputer.shop",
+  "appName": "Dev Computer",
+  "webDir": "dist",
+  "android": { "backgroundColor": "#101713" }
+}

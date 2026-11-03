@@ -1,5 +1,8 @@
 {
   "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/geolocation": "8.2.4",
     "@supabase/supabase-js": "2.118.0",
     "esbuild": "0.28.2",
     "leaflet": "1.9.4",
@@ -12,7 +15,12 @@
     "test": "node checks/local-confirmation.cjs && node checks/local-returns-reviews.cjs && node checks/promotions.mjs && node checks/delivery.cjs && node checks/receipt.mjs && node checks/repairs.mjs",
     "test:email": "node checks/email-auth.mjs",
     "start": "node serve.mjs",
-    "test:live": "node checks/live-rest.mjs"
+    "test:live": "node checks/live-rest.mjs",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android"
   },
-  "name": "dev-computer-frontend"
+  "name": "dev-computer-frontend",
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0"
+  }
 }

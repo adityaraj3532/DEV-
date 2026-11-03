@@ -37,3 +37,7 @@ Repair Centre: customers upload an item photo and describe the problem to receiv
 Location forms use area/city/landmark search (Photon/OpenStreetMap), current GPS or map selection, with no visible coordinate fields. Area searches require internet and the chosen place is approximate; manual area updates are distinguished from live GPS. Live tracking still needs the delivery partner to allow GPS and keep the tracking screen open.
 
 Owner categories: open Owner portal → Products → Manage categories. Enter a category name and choose an icon, then use Add item to open a product form with that category selected. New categories appear in the customer catalogue and the product editor. Category names are checked for duplicates; all data remains browser-local. Selected category icons use dark strokes on lime for contrast.
+
+## Android app
+
+An installable Android project is now available in `frontend/android`. See [ANDROID.md](ANDROID.md) for Windows / Android Studio setup, testing and APK instructions. Run `npm run setup`, `npm run android:sync`, then `npm run android:open` from the repository root. Native GPS uses Capacitor Geolocation; web browsers retain browser GPS. Android compilation/device QA is pending and local-only demo limitations remain.

@@ -1,3 +1,4 @@
+import {deviceLocation} from './device-location.js';
 import {createRepair,updateRepair,repairStatuses} from './repairs.js';
 import {receiptData,receiptMarkup,receiptDocument} from './receipt.js';
 import {icon,productIcons} from './icons.js';
@@ -406,12 +407,12 @@ function promotionForm(p={}){
 let activeMap=null,activeMapElement=null,trackingOrderId=null,geoWatch=null,sharingRequestId=null;
 function reloadLocal(){const raw=localStorage.getItem('electroshop-direct-preview-v1');if(raw){state=JSON.parse(raw);state.promotions??=[];state.reviews??=[];state.returns??=[];}}
 function captureLocation(done,status){
- if(!navigator.geolocation){status.textContent='Location is unavailable in this browser. Enter coordinates manually.';return;}
+ if(!deviceLocation){status.textContent='Location is unavailable in this browser. Enter coordinates manually.';return;}
  status.textContent='Waiting for location permission…';
- navigator.geolocation.getCurrentPosition(pos=>{done({lat:+pos.coords.latitude.toFixed(6),lng:+pos.coords.longitude.toFixed(6)});status.textContent='Location added. Check that the pin matches the intended address.';},err=>{status.textContent=err.code===1?'Location permission denied. Search an area or choose a pin on the map.':'Could not get location. Search an area or choose a map pin.';},{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+ deviceLocation.getCurrentPosition(pos=>{done({lat:+pos.coords.latitude.toFixed(6),lng:+pos.coords.longitude.toFixed(6)});status.textContent='Location added. Check that the pin matches the intended address.';},err=>{status.textContent=err.code===1?'Location permission denied. Search an area or choose a pin on the map.':'Could not get location. Search an area or choose a map pin.';},{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
 }
 function stopSharing(note='Location sharing stopped.'){
- if(geoWatch!==null)navigator.geolocation?.clearWatch(geoWatch);geoWatch=null;sharingRequestId=null;
+ if(geoWatch!==null)deviceLocation?.clearWatch(geoWatch);geoWatch=null;sharingRequestId=null;
  const hint=document.querySelector('#sharingStatus');if(hint)hint.textContent=note;
  const start=document.querySelector('#startSharing'),stop=document.querySelector('#stopSharing');if(start)start.disabled=false;if(stop)stop.disabled=true;
 }
@@ -457,9 +458,9 @@ function trackingView(order){
  updateTracking();document.querySelector('#trackingBack').onclick=action(orders);
  if(driver){document.querySelector('#stopSharing').onclick=()=>stopSharing();
  document.querySelector('#startSharing').onclick=()=>{
-  if(!navigator.geolocation){message('Geolocation is unavailable. Enter a manual location.');return;}if(geoWatch!==null)return;
+  if(!deviceLocation){message('Geolocation is unavailable. Enter a manual location.');return;}if(geoWatch!==null)return;
   sharingRequestId=o.delivery_request.id;document.querySelector('#startSharing').disabled=true;document.querySelector('#stopSharing').disabled=false;document.querySelector('#sharingStatus').textContent='Waiting for GPS permission and first position…';
-  geoWatch=navigator.geolocation.watchPosition(async pos=>{const requestId=sharingRequestId;if(!requestId)return;try{await api('/delivery/location/'+o.id,'POST',{request_id:requestId,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,source:'gps'});state.orders.find(x=>x.id===o.id).driver_area='Live GPS position on map';save();if(requestId!==sharingRequestId)return;updateTracking();const status=document.querySelector('#sharingStatus');if(status)status.textContent='GPS sharing is on. Latest position updated.';}catch(err){stopSharing(err.message);}},err=>{stopSharing(err.code===1?'Permission denied. Enter a manual location instead.':'GPS unavailable or timed out. Try again or enter a manual location.');},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+  geoWatch=deviceLocation.watchPosition(async pos=>{const requestId=sharingRequestId;if(!requestId)return;try{await api('/delivery/location/'+o.id,'POST',{request_id:requestId,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,source:'gps'});state.orders.find(x=>x.id===o.id).driver_area='Live GPS position on map';save();if(requestId!==sharingRequestId)return;updateTracking();const status=document.querySelector('#sharingStatus');if(status)status.textContent='GPS sharing is on. Latest position updated.';}catch(err){stopSharing(err.message);}},err=>{stopSharing(err.code===1?'Permission denied. Enter a manual location instead.':'GPS unavailable or timed out. Try again or enter a manual location.');},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
  };
  placeSearch(document.querySelector('#manualPlace'),async p=>{await api('/delivery/location/'+o.id,'POST',{lat:p.lat,lng:p.lng,request_id:o.delivery_request.id,source:'manual'});state.orders.find(x=>x.id===o.id).driver_area=p.label;save();updateTracking();message('Area location updated (manually selected, not live GPS).');});}
 }

@@ -25,3 +25,7 @@ Browser QA submitted an item photo/problem, verified a unique REP ID, updated th
 ## Custom categories and icon contrast
 
 Browser QA created Monitors, opened Add item with Monitors preselected, and saved QA Display 24 at ₹9,999 with stock 3. The custom category appeared in the customer catalogue. Selected Camera SVG computed dark rgb(23,36,17) on lime rgb(199,255,151), resolving the inherited lime-on-lime icon issue. Root check/build/test passed.
+
+## Android packaging
+
+Added Capacitor 8 Android source, native location adapter, dark/lime launcher resources and root sync/open/debug-APK scripts. Root check/build/test passed and cap sync android completed with Geolocation 8.2.4. This environment has JDK 17 and no Android SDK, so APK compilation and emulator/device QA were not possible. Receipt download/printing inside Android WebView remains unverified. No APK or Play-ready release is claimed.
