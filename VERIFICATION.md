@@ -33,3 +33,7 @@ Added Capacitor 8 Android source, native location adapter, dark/lime launcher re
 ## Laptop sample catalogue
 
 Added three manufacturer-referenced laptops with bundled product pictures and detailed specification lists. Browser QA verified all three pictures loaded, Laptop category filtering, and the expanded MacBook specification section. Root check/build/test and Android asset sync passed. Migration tests verify additions run once and preserve existing products, edited stock, and inactive listings. Prices and sample stock are explicitly illustrative.
+
+## Profile dashboard redesign
+
+Replaced the profile landing form with a reference-inspired greeting, real local-data counts and grouped shopping/support links. Separate personal-detail and address views retain editing. Browser QA saved a sample name/phone and verified the greeting refresh, address-only view and notification empty state/back navigation. Other support rows show truthful local/demo information; no verified-account badge or invented counts. Root check/build/test and Android asset sync passed.
