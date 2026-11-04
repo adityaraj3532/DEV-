@@ -1,5 +1,6 @@
 // Inline vector icons: no emoji fonts, external icon service or runtime dependency.
 const paths={
+ back:'<path d="m12 4-8 8 8 8M4 12h17"/>',
  chevron:'<path d="m9 5 7 7-7 7"/>',
  edit:'<path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m13 6 5 5"/>',
  card:'<rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 9h20M6 15h4"/>',

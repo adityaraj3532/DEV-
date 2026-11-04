@@ -37,3 +37,7 @@ Added three manufacturer-referenced laptops with bundled product pictures and de
 ## Profile dashboard redesign
 
 Replaced the profile landing form with a reference-inspired greeting, real local-data counts and grouped shopping/support links. Separate personal-detail and address views retain editing. Browser QA saved a sample name/phone and verified the greeting refresh, address-only view and notification empty state/back navigation. Other support rows show truthful local/demo information; no verified-account badge or invented counts. Root check/build/test and Android asset sync passed.
+
+## Product details and back navigation
+
+Product photo and name buttons now open a dedicated responsive details screen with image, price, saved specifications, return policy, review summary, wishlist, Add to cart and Buy now. Browser QA verified photo navigation, cart count updates and restoration of the MacBook search after Back. Profile → Orders and Profile → Saved Addresses both returned to Profile using the top-left arrow. Root check/build/test and Android sync passed. No unsupported variants, EMI offers or discounts were invented.
