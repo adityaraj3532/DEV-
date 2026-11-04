@@ -11,7 +11,6 @@ let user=null, products=[], cart={}, editing=null;
 const view=document.querySelector('#view'), nav=document.querySelector('#navigation');
 const adminPath=new URLSearchParams(location.search).get('portal')==='admin';
 const deliveryPath=new URLSearchParams(location.search).get('portal')==='delivery';
-const repairEntry=document.createElement('button');repairEntry.className='secondary repair-entry';repairEntry.textContent='Repair Centre · Book & track repairs';repairEntry.onclick=repairCentre;document.querySelector('main').append(repairEntry);
 document.body.classList.add(adminPath?'owner-portal':deliveryPath?'delivery-portal':'customer-portal');
 const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format(n/100);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -143,13 +142,13 @@ function navigation(){
  const isAdmin=adminPath&&user?.role==='admin',isDelivery=deliveryPath&&user?.role==='delivery',qty=Object.values(cart).reduce((a,b)=>a+b,0);
  nav.innerHTML=isDelivery?'<button id="orders" class="secondary">Requests & deliveries</button><button id="navProfile" class="secondary">Profile</button><button id="logout" class="secondary">Re-enter portal</button>':isAdmin?`<button id="navShop" class="secondary">Products</button><button id="orders" class="secondary">Orders</button><button id="navStock" class="secondary">Stock</button><button id="logout" class="secondary">Re-enter portal</button>`:`<button id="navShop" class="secondary">Shop</button><button id="navWishlist" class="secondary">Wishlist (${savedData().wishlist.length})</button><button id="navCart" class="secondary">Cart (${qty})</button><button id="orders" class="secondary">My Orders</button><button id="navProfile" class="secondary">Profile</button>${user?'<button id="logout" class="secondary">Re-enter portal</button>':'<button id="login">Log in</button>'}`;
  if(!isDelivery){nav.insertAdjacentHTML('beforeend',`<button id="navOffers" class="secondary">${isAdmin?'Manage offers':'Offers & events'}</button>`);document.querySelector('#navOffers').onclick=()=>offersView();}
- if(!isDelivery){nav.insertAdjacentHTML('beforeend','<button id="navRepairs" class="secondary">Repair Centre</button>');document.querySelector('#navRepairs').onclick=repairCentre;}
+ if(!isDelivery){const repairButton=document.createElement('button');repairButton.id='navRepairs';repairButton.className='secondary';repairButton.textContent=isAdmin?'Repair Centre':'Repairs';if(isAdmin)nav.append(repairButton);else nav.querySelector('#navProfile').before(repairButton);repairButton.onclick=repairCentre;}
  if(document.querySelector('#navShop'))document.querySelector('#navShop').onclick=action(shop);
  if(document.querySelector('#navProfile'))document.querySelector('#navProfile').onclick=()=>profileView();
  document.querySelector('#orders').onclick=action(async()=>{profileOrderContext=false;if(!user){message('Log in to see your orders.');login('orders');return;}await orders();});
  if(isAdmin)document.querySelector('#navStock').onclick=stockView;
  else if(!isDelivery){document.querySelector('#navWishlist').onclick=()=>{collectionReturnTo=null;collectionView('wishlist');};document.querySelector('#navCart').onclick=action(async()=>{products=await api('/products');cartView();});}
- const navIcons={navShop:'shop',navWishlist:'heart',navCart:'bag',orders:'box',navProfile:'user',navStock:'box',navOffers:'gift',navRepairs:'box',logout:'user'};nav.querySelectorAll('button').forEach(b=>{const text=b.textContent.replace('My Orders','Orders');b.innerHTML=icon(navIcons[b.id]||'shop')+'<span>'+esc(text)+'</span>';});
+ const navIcons={navShop:'shop',navWishlist:'heart',navCart:'bag',orders:'box',navProfile:'user',navStock:'box',navOffers:'gift',navRepairs:'repair',logout:'user'};nav.querySelectorAll('button').forEach(b=>{const text=b.textContent.replace('My Orders','Orders');b.innerHTML=icon(navIcons[b.id]||'shop')+'<span>'+esc(text)+'</span>';});
  document.querySelector('#headerOffers').onclick=()=>offersView();
  if(user)document.querySelector('#logout').onclick=action(async()=>{await api('/auth/logout','POST');user=null;restoreCart();navigation();await shop();});
  else document.querySelector('#login').onclick=()=>login();
@@ -538,12 +537,12 @@ function profileView(){
  const data=savedData(),profile=data.profile||{},myOrders=state.orders.filter(o=>o.email.toLowerCase()===user.email.toLowerCase());
  const name=profile.name||({admin:'Shop owner',delivery:'Delivery partner',customer:'Customer'})[user.role]||'Customer';
  const row=(id,symbol,title,subtitle='')=>`<button class="profile-menu-row" id="${id}"><span class="profile-row-icon">${icon(symbol)}</span><span class="profile-row-copy"><strong>${title}</strong>${subtitle?`<small>${subtitle}</small>`:''}</span>${icon('chevron')}</button>`;
- view.innerHTML=`<section class="profile-home"><div class="profile-greeting"><span class="profile-avatar">${icon('user')}</span><div><h2>Hello, ${esc(name)}!</h2><p>${esc(user.email)}</p><span class="profile-account-label">Local demo account</span></div><button class="icon-button" id="editProfile" aria-label="Edit personal details">${icon('edit')}</button></div><div class="profile-metrics"><button id="profileOrdersCount"><strong>${myOrders.length}</strong><span>Orders</span></button><button id="profileWishlistCount"><strong>${data.wishlist.length}</strong><span>Wishlist</span></button><button id="profileAddressCount"><strong>${(data.addresses||[]).length}</strong><span>Addresses</span></button></div><section class="profile-menu-group"><h3>My shopping</h3>${row('profileOrders','box','My Orders','Track, return and view receipts')}${row('profileWishlist','heart','My Wishlist','Your saved products')}${row('profileAddresses','pin','Saved Addresses','Manage delivery locations')}${row('profilePayments','card','Payment Methods','Checkout payment options')}${row('profileReturns','refresh','Returns & Refunds','Track your return requests')}</section><section class="profile-menu-group"><h3>Account & support</h3>${row('profileDevices','laptop','My Repair Devices')}${row('profileRepairs','box','Repair Centre','Book a repair and check its progress')}${row('profilePrivacy','shield','Security & Privacy')}${row('profileNotifications','bell','Notifications')}${row('profileHelp','headphones','Help & Support')}${row('profileLogout','logout','Logout')}</section></section>`;
+ view.innerHTML=`<section class="profile-home"><div class="profile-greeting"><button class="profile-avatar" id="chooseAvatar" aria-label="Choose profile avatar">${avatarMarkup(data.avatarKey||'lime',name)}</button><div><h2>Hello, ${esc(name)}!</h2><p>${esc(user.email)}</p><span class="profile-account-label">Local demo account</span></div><button class="icon-button" id="editProfile" aria-label="Edit personal details">${icon('edit')}</button></div><div class="profile-metrics"><button id="profileOrdersCount"><strong>${myOrders.length}</strong><span>Orders</span></button><button id="profileWishlistCount"><strong>${data.wishlist.length}</strong><span>Wishlist</span></button><button id="profileAddressCount"><strong>${(data.addresses||[]).length}</strong><span>Addresses</span></button></div><section class="profile-menu-group"><h3>My shopping</h3>${row('profileOrders','box','My Orders','Track, return and view receipts')}${row('profileWishlist','heart','My Wishlist','Your saved products')}${row('profileAddresses','pin','Saved Addresses','Manage delivery locations')}${row('profilePayments','card','Payment Methods','Checkout payment options')}${row('profileReturns','refresh','Returns & Refunds','Track your return requests')}</section><section class="profile-menu-group"><h3>Account & support</h3>${row('profileDevices','laptop','My Repair Devices')}${row('profilePrivacy','shield','Security & Privacy')}${row('profileNotifications','bell','Notifications')}${row('profileHelp','headphones','Help & Support')}${row('profileLogout','logout','Logout')}</section></section>`;
+ document.querySelector('#chooseAvatar').onclick=avatarPicker;
  document.querySelector('#editProfile').onclick=()=>profileDetailsView();
  ['profileOrders','profileOrdersCount'].forEach(id=>document.getElementById(id).onclick=action(()=>{profileOrderContext=true;return orders();}));
  ['profileWishlist','profileWishlistCount'].forEach(id=>document.getElementById(id).onclick=()=>{collectionReturnTo=profileView;collectionView('wishlist');});
  ['profileAddresses','profileAddressCount'].forEach(id=>document.getElementById(id).onclick=()=>profileDetailsView('addresses'));
- document.querySelector('#profileRepairs').onclick=()=>{repairCentre();pageBack(profileView,'Back to profile');};
  for(const name of ['Payments','Returns','Devices','Privacy','Notifications','Help'])document.getElementById('profile'+name).onclick=()=>profilePanel(name);
  document.querySelector('#profileLogout').onclick=action(async()=>{await api('/auth/logout','POST');user=null;restoreCart();navigation();login('profile');});
 }
@@ -562,7 +561,7 @@ function profilePanel(kind){
 
 let profileOrderContext=false,collectionReturnTo=null;
 function pageBack(goBack,label='Back'){
- const old=view.querySelector('.page-back');if(old)old.remove();const button=document.createElement('button');button.className='page-back secondary';button.setAttribute('aria-label',label);button.innerHTML=icon('back')+'<span>'+esc(label)+'</span>';button.onclick=action(goBack);view.prepend(button);
+ const old=view.querySelector('.page-back');if(old)old.remove();const button=document.createElement('button');button.className='page-back secondary';button.setAttribute('aria-label',label);button.title=label;button.innerHTML=icon('back');button.onclick=action(goBack);view.prepend(button);
 }
 async function productDetails(id,backTo=shop){
  disposeMap();reloadLocal();const p=state.products.find(p=>p.id===id);if(!p)throw Error('This product is unavailable.');view.classList.remove('searching');selectNav('navShop');
@@ -577,4 +576,17 @@ async function productDetails(id,backTo=shop){
  document.querySelector('#detailBuy').onclick=action(()=>{if(!cart[id])addItem(id);if(!user){login('checkout');return;}checkoutForm();pageBack(()=>productDetails(id,backTo),'Back to product');});
  document.querySelector('#detailWish').onclick=()=>{const added=toggleWish(id),b=document.querySelector('#detailWish');b.innerHTML=icon('heart',{filled:added})+(added?' Wishlisted':' Save to wishlist');b.setAttribute('aria-pressed',String(added));message(added?'Added to your wishlist':'Removed from your wishlist');};
  }
+}
+
+function avatarMarkup(key,name='Customer'){
+ const themes={lime:['#b6f783','#344f31'],sky:['#9bd8ff','#294a68'],rose:['#f4b8ce','#65364b'],amber:['#ffd38a','#66502d']};
+ if(key==='initials'){const initials=name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();return `<span class="avatar-initials">${esc(initials)}</span>`;}
+ const [background,hair]=themes[key]||themes.lime;
+ return `<svg class="avatar-art" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="40" fill="${background}"/><path d="M12 80v-6c0-18 56-18 56 0v6" fill="${hair}"/><path d="M32 52h16v15H32z" fill="#dfaa84"/><ellipse cx="40" cy="35" rx="20" ry="23" fill="#f0c7a3"/><path d="M20 35V24C20 5 61 5 61 27v9l-8-15c-8 10-18 10-28 6l-5 8" fill="${hair}"/><circle cx="32" cy="36" r="2" fill="#243027"/><circle cx="48" cy="36" r="2" fill="#243027"/><path d="M34 46q6 5 12 0" stroke="#784b3f" stroke-width="2" fill="none" stroke-linecap="round"/>${key==='sky'?'<path d="M24 33h13v9H24zm19 0h13v9H43zm-6 3h6" fill="none" stroke="#294a68" stroke-width="2"/>':''}</svg>`;
+}
+function avatarPicker(){
+ if(!user){login('profile');return;}const data=savedData(),name=data.profile?.name||'Customer';selectNav('navProfile');
+ const options=[['lime','Lime avatar'],['sky','Sky avatar'],['rose','Rose avatar'],['amber','Amber avatar'],['initials','My initials']];
+ view.innerHTML=`<section class="card avatar-picker"><h2>Choose your avatar</h2><p class="muted">Pick a profile picture. It is saved on this browser or app installation.</p><div class="avatar-options">${options.map(([key,label])=>`<button class="avatar-option secondary" data-avatar="${key}" aria-pressed="${(data.avatarKey||'lime')===key}"><span class="avatar-preview">${avatarMarkup(key,name)}</span><span>${label}</span></button>`).join('')}</div></section>`;
+ pageBack(profileView,'Back to profile');document.querySelectorAll('[data-avatar]').forEach(b=>b.onclick=action(()=>{reloadLocal();savedData().avatarKey=b.dataset.avatar;save();profileView();message('Profile avatar saved');}));
 }

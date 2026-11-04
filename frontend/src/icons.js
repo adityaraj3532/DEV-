@@ -1,5 +1,6 @@
 // Inline vector icons: no emoji fonts, external icon service or runtime dependency.
 const paths={
+ repair:'<path d="M14 6a6 6 0 0 0-8 8l-4 4a3 3 0 0 0 4 4l4-4a6 6 0 0 0 8-8l-4 4-4-4 4-4Z"/>',
  back:'<path d="m12 4-8 8 8 8M4 12h17"/>',
  chevron:'<path d="m9 5 7 7-7 7"/>',
  edit:'<path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m13 6 5 5"/>',

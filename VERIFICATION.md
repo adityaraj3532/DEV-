@@ -41,3 +41,7 @@ Replaced the profile landing form with a reference-inspired greeting, real local
 ## Product details and back navigation
 
 Product photo and name buttons now open a dedicated responsive details screen with image, price, saved specifications, return policy, review summary, wishlist, Add to cart and Buy now. Browser QA verified photo navigation, cart count updates and restoration of the MacBook search after Back. Profile → Orders and Profile → Saved Addresses both returned to Profile using the top-left arrow. Root check/build/test and Android sync passed. No unsupported variants, EMI offers or discounts were invented.
+
+## Repairs navigation, compact back arrows and avatars
+
+Moved customer Repairs into a six-item bottom navigation between Orders and Profile, removed the repeated footer repair button and duplicate Repair Centre profile row. Shared back buttons now render only an arrow while retaining accessible labels/tooltips; duplicate lower back buttons are hidden. Profile supports four illustrated avatars or initials, saved locally. Browser QA verified the six visible nav items, Repairs screen, avatar selection across reload, and an arrow button with empty visible text and 42px width. Root check/build/test and Android sync passed.
