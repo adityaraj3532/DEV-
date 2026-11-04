@@ -58,3 +58,5 @@ __pycache__/
 !frontend/dist/theme.css
 !frontend/dist/assets/
 !frontend/dist/assets/*.svg
+
+!frontend/dist/assets/*.webp

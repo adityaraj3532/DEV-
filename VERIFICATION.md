@@ -29,3 +29,7 @@ Browser QA created Monitors, opened Add item with Monitors preselected, and save
 ## Android packaging
 
 Added Capacitor 8 Android source, native location adapter, dark/lime launcher resources and root sync/open/debug-APK scripts. Root check/build/test passed and cap sync android completed with Geolocation 8.2.4. This environment has JDK 17 and no Android SDK, so APK compilation and emulator/device QA were not possible. Receipt download/printing inside Android WebView remains unverified. No APK or Play-ready release is claimed.
+
+## Laptop sample catalogue
+
+Added three manufacturer-referenced laptops with bundled product pictures and detailed specification lists. Browser QA verified all three pictures loaded, Laptop category filtering, and the expanded MacBook specification section. Root check/build/test and Android asset sync passed. Migration tests verify additions run once and preserve existing products, edited stock, and inactive listings. Prices and sample stock are explicitly illustrative.

@@ -39,3 +39,5 @@ html{background:var(--bg);scroll-behavior:smooth}body{background:var(--bg);color
 .category-tabs button[data-category].selected .category-icon .ui-icon{color:#172411;opacity:1;stroke-width:1.9}
 .category-tabs button[data-category].selected:hover .category-icon{background:#c7ff97}
 @media(max-width:600px){.category-tabs[aria-label="Product categories"]{grid-template-columns:repeat(auto-fit,minmax(46px,1fr));row-gap:16px}}
+
+.product-specifications{font-size:12px;margin:14px 0}.product-specifications>div{padding:8px 0;border-bottom:1px solid var(--line)}.product-specifications dt{color:var(--muted);font-weight:600}.product-specifications dd{margin:3px 0 0;color:var(--ink)}
