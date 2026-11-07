@@ -6,7 +6,7 @@ import {icon,productIcons} from './icons.js';
 import {canDrive,point,sendRequest,respondRequest,withdrawRequest,shareLocation,distanceKm} from './delivery.js';
 import {createDeliveryMap} from './delivery-map.js';
 import {promotionStatus, validatePromotion} from './promotions.js';
-import {track,storedCustomer,storeCustomer,validateCustomer} from './activity.js';
+import {track,storedCustomer,storeCustomer,validateCustomer,requestOtp,verifyOtp,checkSession,signOut} from './activity.js';
 import {adminPanel} from './admin-panel.js';
 'use strict';
 let user=null, products=[], cart={}, editing=null;
@@ -60,10 +60,10 @@ function ratingSummary(id){const r=(state.reviews||[]).filter(r=>r.product_id===
 function canReturn(order,item){return order.status==='Delivered'&&item.returnable&&order.delivered_at&&Date.now()/1000<=order.delivered_at+(item.return_days||7)*86400;}
 async function api(path,method='GET',body){
 if(typeof reloadLocal==='function')reloadLocal();
-if(path==='/auth/me'){if(!adminPath&&!deliveryPath){const c=storedCustomer();user=c?{...c,role:'customer'}:null;return user;}user={email:deliveryPath?'delivery@demo.com':adminPath?'owner@demo.com':'customer@demo.com',role:deliveryPath?'delivery':adminPath?'admin':'customer'};return user;}
+if(path==='/auth/me'){if(!adminPath&&!deliveryPath){const c=await checkSession();user=c?{email:c.email,name:c.name,phone:c.phone,role:'customer'}:null;return user;}user={email:deliveryPath?'delivery@demo.com':adminPath?'owner@demo.com':'customer@demo.com',role:deliveryPath?'delivery':adminPath?'admin':'customer'};return user;}
 if(path==='/auth/request-otp'){sessionStorage.setItem('demoEmail',body.email);return {message:'Demo code: 123456. No email is sent in this preview.'};}
 if(path==='/auth/verify-otp'){if(body.code!=='123456')throw Error('Use the demo OTP: 123456');const u={email:body.email,role:body.email.toLowerCase()==='owner@demo.com'?'admin':body.email.toLowerCase()==='delivery@demo.com'?'delivery':'customer'};sessionStorage.setItem('demoUser',JSON.stringify(u));return u;}
-if(path==='/auth/logout'){track('logout',user);if(user?.role==='customer')storeCustomer(null);sessionStorage.removeItem('demoUser');return {};}
+if(path==='/auth/logout'){track('logout',user);if(user?.role==='customer')await signOut();sessionStorage.removeItem('demoUser');return {};}
 if(path==='/products')return state.products.filter(p=>p.active);
 if(path.startsWith('/reviews/')&&method==='GET')return (state.reviews||[]).filter(r=>r.product_id===+path.split('/').pop()).map(({email,...r})=>r);
 if(!user)throw Error('Please log in');
@@ -489,7 +489,13 @@ function customerSignIn(destination){
  const c=storedCustomer()||{};
  view.innerHTML=`<section class="card"><h2>Sign in</h2><p class="muted">Sign in to save your cart, place orders and track repairs.</p><form id="customerSignIn"><label>Full name<input name="name" required minlength="2" maxlength="80" autocomplete="name" value="${esc(c.name)}"></label><label>Email<input name="email" type="email" required maxlength="254" autocomplete="email" value="${esc(c.email)}"></label><label>Phone (optional)<input name="phone" inputmode="tel" maxlength="16" autocomplete="tel" value="${esc(c.phone)}"></label><button>Sign in</button> <button id="signInBack" type="button" class="secondary">Keep browsing</button></form></section>`;
  document.querySelector('#signInBack').onclick=action(shop);
- document.querySelector('#customerSignIn').onsubmit=action(e=>{const c=validateCustomer(Object.fromEntries(new FormData(e.target)));storeCustomer(c);user={...c,role:'customer'};mergeGuest();restoreCart();const d=savedData();d.profile={...d.profile,name:d.profile?.name||c.name,phone:d.profile?.phone||c.phone};save();navigation();track('login',user);message('Signed in as '+c.name);if(destination==='profile')profileView();else if(destination==='orders')orders();else if(destination==='checkout')checkoutForm();else shop();});
+ document.querySelector('#customerSignIn').onsubmit=action(async e=>{const c=validateCustomer(Object.fromEntries(new FormData(e.target)));const r=await requestOtp(c);otpStep(c,r.message,destination);});
+}
+function otpStep(c,note,destination){
+ view.innerHTML=`<section class="card"><h2>Enter your code</h2><p class="muted">${esc(note)}</p><form id="otpForm"><label>6-digit code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus></label><button>Verify and sign in</button> <button id="otpResend" type="button" class="secondary">Resend code</button> <button id="otpBack" type="button" class="secondary">Change details</button></form></section>`;
+ document.querySelector('#otpBack').onclick=()=>customerSignIn(destination);
+ document.querySelector('#otpResend').onclick=action(async()=>{const r=await requestOtp(c);message(r.message);});
+ document.querySelector('#otpForm').onsubmit=action(async e=>{const v=await verifyOtp(c.email,new FormData(e.target).get('code').trim());user={email:v.email,name:v.name,phone:v.phone,role:'customer'};mergeGuest();restoreCart();const d=savedData();d.profile={...d.profile,name:d.profile?.name||v.name,phone:d.profile?.phone||v.phone};save();navigation();message('Signed in as '+v.name);if(destination==='profile')profileView();else if(destination==='orders')orders();else if(destination==='checkout')checkoutForm();else shop();});
 }
 const pageNames={navShop:'Shop',navWishlist:'Wishlist',navCart:'Cart',orders:'Orders',navProfile:'Profile',navOffers:'Offers',navRepairs:'Repair Centre'};
 function selectNav(id){if(pageNames[id])track('view',user,{page:pageNames[id]});nav.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.id===id);if(b.id===id)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}

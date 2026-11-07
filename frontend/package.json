@@ -11,8 +11,8 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "check": "node --check src/entry.js && node --check src/local-app.js && node --check src/delivery.js && node --check src/delivery-map.js && node --check src/activity.js && node --check src/admin-panel.js && node --check server/store.mjs && node --check serve.mjs",
-    "test": "node checks/local-confirmation.cjs && node checks/local-returns-reviews.cjs && node checks/promotions.mjs && node checks/delivery.cjs && node checks/receipt.mjs && node checks/repairs.mjs && node checks/laptop-catalog.mjs && node checks/activity-store.mjs",
+    "check": "node --check src/entry.js && node --check src/local-app.js && node --check src/delivery.js && node --check src/delivery-map.js && node --check src/activity.js && node --check src/admin-panel.js && node --check server/store.mjs && node --check serve.mjs && node --check server/auth.mjs && node --check server/mailer.mjs",
+    "test": "node checks/local-confirmation.cjs && node checks/local-returns-reviews.cjs && node checks/promotions.mjs && node checks/delivery.cjs && node checks/receipt.mjs && node checks/repairs.mjs && node checks/laptop-catalog.mjs && node checks/activity-store.mjs && node checks/otp-auth.mjs",
     "test:email": "node checks/email-auth.mjs",
     "start": "node serve.mjs",
     "test:live": "node checks/live-rest.mjs",

@@ -18,4 +18,17 @@ Open `http://localhost:8080/?portal=admin`, choose **Activity**, and enter the a
 (name, email, phone, sign-ins, orders, spend) and a filterable activity feed. Without the backend (e.g. the Android
 build) the panel falls back to activity recorded in that browser.
 
-Note: customer sign-in is not yet verified (no OTP/password), so names and emails are self-reported.
+### Customer sign-in (email OTP)
+
+Customers enter name, email and optional phone, receive a 6-digit code, and enter it to sign in.
+Codes expire after 10 minutes, are single use, allow 5 attempts, and can be resent every 30 s (max 5/hour).
+Sign-in creates a 30-day session token (only its hash is stored in `data/sessions.json`); activity is
+attributed only to verified sessions.
+
+Without SMTP settings the server runs in **development mode** and prints codes in its terminal. To send real email:
+
+```bash
+SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=you@gmail.com SMTP_PASS=app-password SMTP_FROM="Dev Computer <you@gmail.com>" npm start
+```
+
+Port 465 uses TLS; other ports require STARTTLS. Customer sign-in needs this server, so the offline Android build cannot sign customers in.

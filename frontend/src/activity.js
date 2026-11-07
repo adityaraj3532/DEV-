@@ -23,7 +23,7 @@ export function track(type,user,detail={}){
  if(type==='view'){const now=Date.now();if(detail.page===lastView&&now-lastViewAt<30000)return;lastView=detail.page;lastViewAt=now;}
  const event={type,email:user?.email||null,name:user?.name||null,phone:user?.phone||null,session:session(),device:navigator.userAgent.slice(0,160),detail,at:Date.now()};
  safe(()=>{const log=JSON.parse(localStorage.getItem(LOG_KEY)||'[]');log.push(event);localStorage.setItem(LOG_KEY,JSON.stringify(log.slice(-1500)));});
- if(location.protocol.startsWith('http'))fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(event),keepalive:true}).catch(()=>{});
+ if(location.protocol.startsWith('http'))fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json',...(storedCustomer()?.token?{Authorization:'Bearer '+storedCustomer().token}:{})},body:JSON.stringify(event),keepalive:true}).catch(()=>{});
 }
 
 export function localActivity(){return safe(()=>JSON.parse(localStorage.getItem(LOG_KEY)||'[]'),[]).slice().reverse();}
@@ -45,3 +45,18 @@ export async function adminFetch(path){
  if(!r.ok)throw Error('Backend error '+r.status);
  return r.json();
 }
+
+// ---- Email OTP sign-in (backend: /api/auth/*) ----
+async function authCall(path,body,token){
+ let r;
+ try{r=await fetch('/api/auth/'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});}
+ catch{throw Object.assign(Error('Cannot reach the sign-in server. Check your connection and try again.'),{offline:true});}
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok)throw Object.assign(Error(data.error||'Sign-in failed ('+r.status+')'),{status:r.status});
+ return data;
+}
+export const requestOtp=profile=>authCall('request-otp',profile);
+export async function verifyOtp(email,code){const {token,customer}=await authCall('verify-otp',{email,code});const c={...customer,token};storeCustomer(c);return c;}
+/** Returns the signed-in customer, or null if the server says the session ended. Keeps the session when offline. */
+export async function checkSession(){const c=storedCustomer();if(!c?.token)return null;try{await authCall('me',null,c.token);return c;}catch(e){if(e.offline)return c;storeCustomer(null);return null;}}
+export async function signOut(){const c=storedCustomer();storeCustomer(null);if(c?.token)await authCall('logout',{},c.token).catch(()=>{});}
