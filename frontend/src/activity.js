@@ -1,6 +1,8 @@
 // Customer sign-in storage and activity tracking.
 // Events are kept in this browser and also sent to the local Node backend (/api/events) when it is running.
 const CUSTOMER_KEY='devcomputer-customer-v1',LOG_KEY='devcomputer-activity-v1',ADMIN_KEY='devcomputer-admin-key';
+// Backend address. Empty = same server as the page (website). The Android build sets API_URL at build time.
+export const API=(typeof __API_URL__==='string'?__API_URL__:'').replace(/\/+$/,'');
 const safe=(fn,fallback)=>{try{return fn();}catch{return fallback;}};
 
 export function storedCustomer(){return safe(()=>JSON.parse(localStorage.getItem(CUSTOMER_KEY)||'null'),null);}
@@ -23,7 +25,7 @@ export function track(type,user,detail={}){
  if(type==='view'){const now=Date.now();if(detail.page===lastView&&now-lastViewAt<30000)return;lastView=detail.page;lastViewAt=now;}
  const event={type,email:user?.email||null,name:user?.name||null,phone:user?.phone||null,session:session(),device:navigator.userAgent.slice(0,160),detail,at:Date.now()};
  safe(()=>{const log=JSON.parse(localStorage.getItem(LOG_KEY)||'[]');log.push(event);localStorage.setItem(LOG_KEY,JSON.stringify(log.slice(-1500)));});
- if(location.protocol.startsWith('http'))fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json',...(storedCustomer()?.token?{Authorization:'Bearer '+storedCustomer().token}:{})},body:JSON.stringify(event),keepalive:true}).catch(()=>{});
+ if(API||location.protocol.startsWith('http'))fetch(API+'/api/events',{method:'POST',headers:{'Content-Type':'application/json',...(storedCustomer()?.token?{Authorization:'Bearer '+storedCustomer().token}:{})},body:JSON.stringify(event),keepalive:true}).catch(()=>{});
 }
 
 export function localActivity(){return safe(()=>JSON.parse(localStorage.getItem(LOG_KEY)||'[]'),[]).slice().reverse();}
@@ -40,7 +42,7 @@ export function customersFromEvents(events){
 export const adminKey={get:()=>safe(()=>sessionStorage.getItem(ADMIN_KEY)||'',''),set:k=>safe(()=>k?sessionStorage.setItem(ADMIN_KEY,k):sessionStorage.removeItem(ADMIN_KEY))};
 
 export async function adminFetch(path){
- const r=await fetch('/api/admin/'+path,{headers:{'x-admin-key':adminKey.get()}});
+ const r=await fetch(API+'/api/admin/'+path,{headers:{'x-admin-key':adminKey.get()}});
  if(r.status===401)throw Object.assign(Error('Admin key required'),{code:401});
  if(!r.ok)throw Error('Backend error '+r.status);
  return r.json();
@@ -49,7 +51,7 @@ export async function adminFetch(path){
 // ---- Email OTP sign-in (backend: /api/auth/*) ----
 async function authCall(path,body,token){
  let r;
- try{r=await fetch('/api/auth/'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});}
+ try{r=await fetch(API+'/api/auth/'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});}
  catch{throw Object.assign(Error('Cannot reach the sign-in server. Check your connection and try again.'),{offline:true});}
  const data=await r.json().catch(()=>({}));
  if(!r.ok)throw Object.assign(Error(data.error||'Sign-in failed ('+r.status+')'),{status:r.status});
