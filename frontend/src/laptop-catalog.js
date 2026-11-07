@@ -1,0 +1,11 @@
+// Manufacturer references and photo provenance: assets/LAPTOP-SOURCES.md.
+export const laptopSamples=[
+ {id:80101,name:'Apple MacBook Air M2 (13.6-inch)',brand:'Apple',price_paise:7999000,stock:4,image_url:'/assets/macbook-air-m2.webp',description:'Apple M2 · 8GB unified memory · 256GB SSD · 13.6-inch Liquid Retina display.',specifications:{Processor:'Apple M2, 8-core CPU, 8-core GPU',Memory:'8GB unified memory',Storage:'256GB SSD',Display:'13.6-inch IPS, 2560 × 1664',Ports:'MagSafe 3, two Thunderbolt / USB 4, headphone jack',Weight:'1.24 kg',SuitableFor:'College, coding, office work and everyday editing'}},
+ {id:80102,name:'ASUS Vivobook 15 X1504VA',brand:'ASUS',price_paise:4799000,stock:6,image_url:'/assets/asus-vivobook-15.webp',description:'Intel Core i5-1334U · 15.6-inch Full HD display · 512GB SSD. Everyday study and office laptop.',specifications:{Processor:'Intel Core i5-1334U, 10 cores / 12 threads',Storage:'512GB NVMe SSD',Display:'15.6-inch Full HD, 1920 × 1080',System:'Windows 11 Home',SuitableFor:'Study, office documents, browsing and video calls',Configuration:'Memory and other options vary by SKU; confirm your stock configuration'}},
+ {id:80103,name:'Lenovo IdeaPad Slim 3 15IRH8',brand:'Lenovo',price_paise:5299000,stock:5,image_url:'/assets/lenovo-ideapad-slim3.webp',description:'Intel Core i5-13420H · 16GB LPDDR5 · 512GB SSD · 15.6-inch Full HD IPS display.',specifications:{Model:'83EM0023IN',Processor:'Intel Core i5-13420H, up to 4.6 GHz',Memory:'16GB LPDDR5-4800, soldered',Storage:'512GB PCIe SSD',Display:'15.6-inch FHD IPS, 300 nits, 60Hz',Graphics:'Integrated Intel UHD Graphics',System:'Windows 11 Home Single Language',Weight:'1.6 kg',SuitableFor:'Programming, multitasking and college projects'}}
+].map(p=>({...p,category:'Laptop',active:1,returnable:false,return_days:0,sample_listing:true}));
+export function addLaptopSamples(state){
+ if(state.laptopCatalogVersion===1)return false;
+ for(const sample of [...laptopSamples].reverse())if(!state.products.some(p=>p.id===sample.id||p.name.toLowerCase()===sample.name.toLowerCase()))state.products.unshift({...sample,specifications:{...sample.specifications}});
+ state.laptopCatalogVersion=1;return true;
+}

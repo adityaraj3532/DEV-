@@ -59,5 +59,7 @@ __pycache__/
 !frontend/dist/assets/
 !frontend/dist/assets/*.svg
 
+!frontend/dist/assets/*.webp
+
 # Local backend data (customer info, activity log, admin key)
 frontend/data/

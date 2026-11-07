@@ -29,3 +29,19 @@ Browser QA created Monitors, opened Add item with Monitors preselected, and save
 ## Android packaging
 
 Added Capacitor 8 Android source, native location adapter, dark/lime launcher resources and root sync/open/debug-APK scripts. Root check/build/test passed and cap sync android completed with Geolocation 8.2.4. This environment has JDK 17 and no Android SDK, so APK compilation and emulator/device QA were not possible. Receipt download/printing inside Android WebView remains unverified. No APK or Play-ready release is claimed.
+
+## Laptop sample catalogue
+
+Added three manufacturer-referenced laptops with bundled product pictures and detailed specification lists. Browser QA verified all three pictures loaded, Laptop category filtering, and the expanded MacBook specification section. Root check/build/test and Android asset sync passed. Migration tests verify additions run once and preserve existing products, edited stock, and inactive listings. Prices and sample stock are explicitly illustrative.
+
+## Profile dashboard redesign
+
+Replaced the profile landing form with a reference-inspired greeting, real local-data counts and grouped shopping/support links. Separate personal-detail and address views retain editing. Browser QA saved a sample name/phone and verified the greeting refresh, address-only view and notification empty state/back navigation. Other support rows show truthful local/demo information; no verified-account badge or invented counts. Root check/build/test and Android asset sync passed.
+
+## Product details and back navigation
+
+Product photo and name buttons now open a dedicated responsive details screen with image, price, saved specifications, return policy, review summary, wishlist, Add to cart and Buy now. Browser QA verified photo navigation, cart count updates and restoration of the MacBook search after Back. Profile → Orders and Profile → Saved Addresses both returned to Profile using the top-left arrow. Root check/build/test and Android sync passed. No unsupported variants, EMI offers or discounts were invented.
+
+## Repairs navigation, compact back arrows and avatars
+
+Moved customer Repairs into a six-item bottom navigation between Orders and Profile, removed the repeated footer repair button and duplicate Repair Centre profile row. Shared back buttons now render only an arrow while retaining accessible labels/tooltips; duplicate lower back buttons are hidden. Profile supports four illustrated avatars or initials, saved locally. Browser QA verified the six visible nav items, Repairs screen, avatar selection across reload, and an arrow button with empty visible text and 42px width. Root check/build/test and Android sync passed.
