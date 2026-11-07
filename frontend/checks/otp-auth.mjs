@@ -27,5 +27,15 @@ try{
  assert.throws(()=>auth.verifyCode({email:'asha@example.com',code:third}),/Too many/);
  auth.logout(token);assert.equal(auth.session(token),null);
  t+=31*86400000;
- console.log('PASS: OTP sign-in codes, cooldown, single use, expiry, attempt limit, hashed persistent sessions, logout');
+ // DEV_OTP: a fixed code works for any email, but only after a requestCode, and never when unset.
+ let dt=5_000_000;const dev=createAuth(dir,{now:()=>dt,devOtp:'123456'});
+ assert.throws(()=>dev.verifyCode({email:'dev@example.com',code:'123456'}),/not requested/); // needs requestCode first
+ dev.requestCode({name:'Dev User',email:'dev@example.com'});
+ assert.throws(()=>dev.verifyCode({email:'dev@example.com',code:'000000'}),/Incorrect/); // other codes still rejected
+ const out=dev.verifyCode({email:'dev@example.com',code:'123456'});assert.equal(out.customer.email,'dev@example.com');assert.match(out.token,/.{20}/);
+ const noDev=createAuth(dir,{now:()=>dt});noDev.requestCode({name:'No Dev',email:'n@example.com'});
+ assert.throws(()=>noDev.verifyCode({email:'n@example.com',code:'123456'}),/Incorrect/); // disabled when not set
+ const badDev=createAuth(dir,{now:()=>dt,devOtp:'12'});badDev.requestCode({name:'Bad Dev',email:'bad@example.com'}); // too-short devOtp is ignored
+ assert.throws(()=>badDev.verifyCode({email:'bad@example.com',code:'12'}),/Incorrect/);
+ console.log('PASS: OTP sign-in codes, cooldown, single use, expiry, attempt limit, hashed persistent sessions, logout, dev code');
 }finally{rmSync(dir,{recursive:true,force:true});}

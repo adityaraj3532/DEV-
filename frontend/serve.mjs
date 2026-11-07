@@ -13,7 +13,11 @@ try{process.loadEnvFile(fileURLToPath(new URL('./.env',import.meta.url)));}catch
 const root=fileURLToPath(new URL('./dist/',import.meta.url));
 const dataDir=process.env.DATA_DIR||fileURLToPath(new URL('./data/',import.meta.url));
 const port=+process.env.PORT||8080,host=process.env.HOST||'127.0.0.1';
-const store=createStore(dataDir),auth=createAuth(dataDir),mailer=mailerFromEnv();
+const mailer=mailerFromEnv();
+// DEV_OTP is a fixed sign-in code for local development. It is ignored once real email (SMTP) is set up,
+// so it can never apply on the hosted shop. Never set it in production.
+const devOtp=mailer.mode==='smtp'?'':(process.env.DEV_OTP||'');
+const store=createStore(dataDir),auth=createAuth(dataDir,{devOtp});
 // Staff roles come only from server configuration; everyone else who signs in is a customer.
 const emails=v=>String(v||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
 const ownerEmails=emails(process.env.OWNER_EMAILS),deliveryEmails=emails(process.env.DELIVERY_EMAILS);
@@ -87,6 +91,7 @@ createServer(async(req,res)=>{
  console.log(`Dev Computer: http://localhost:${port} (Ctrl+C to stop)`);
  console.log(`Owner portal: http://localhost:${port}/?portal=admin  ->  Activity`);
  console.log(`Email: ${mailer.mode==='smtp'?'SMTP '+process.env.SMTP_HOST:'development mode (sign-in codes print here)'}`);
+ if(devOtp)console.log(`DEV_OTP active: sign in with code ${devOtp} for any email (development only; ignored once SMTP is set).`);
  console.log(`Owners: ${ownerEmails.join(', ')||'none - set OWNER_EMAILS'} · Delivery: ${deliveryEmails.join(', ')||'none - set DELIVERY_EMAILS'}`);
  console.log(`Admin key: ${process.env.ADMIN_KEY?'from ADMIN_KEY env':store.keyFile}`);
 });

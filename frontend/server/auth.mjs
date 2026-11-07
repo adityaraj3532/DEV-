@@ -19,7 +19,10 @@ export function cleanProfile(body){
  return {name,email,phone};
 }
 
-export function createAuth(dir,{now=Date.now}={}){
+export function createAuth(dir,{now=Date.now,devOtp=''}={}){
+ // devOtp: a fixed code accepted for any email, for LOCAL DEVELOPMENT ONLY. The caller must pass it
+ // only when real email is not configured, never on a hosted shop. It still needs a prior requestCode.
+ const devCode=/^\d{6}$/.test(String(devOtp))?String(devOtp):'';
  const file=join(dir,'sessions.json');
  const sessions=existsSync(file)?JSON.parse(readFileSync(file,'utf8')):{}; // tokenHash -> {email,name,phone,expires}
  const pending=new Map(); // email -> {codeHash,expires,attempts,profile,sends:[times]}
@@ -44,7 +47,8 @@ export function createAuth(dir,{now=Date.now}={}){
   if(p.attempts>=MAX_ATTEMPTS)throw fail('Too many wrong attempts. Request a new code.');
   p.attempts++;
   const a=Buffer.from(hash(email+':'+code)),b=Buffer.from(p.codeHash);
-  if(!/^\d{6}$/.test(code)||!timingSafeEqual(a,b))throw fail(`Incorrect code. ${MAX_ATTEMPTS-p.attempts} attempts left.`);
+  const devMatch=devCode&&code===devCode;
+  if(!devMatch&&(!/^\d{6}$/.test(code)||!timingSafeEqual(a,b)))throw fail(`Incorrect code. ${MAX_ATTEMPTS-p.attempts} attempts left.`);
   pending.delete(email);
   const token=randomBytes(32).toString('base64url');
   sessions[hash(token)]={...p.profile,expires:t+SESSION_TTL};persist();
