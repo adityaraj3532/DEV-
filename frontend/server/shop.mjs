@@ -7,6 +7,7 @@ import {point,sendRequest,respondRequest,withdrawRequest,shareLocation,canDrive}
 import {validatePromotion} from '../src/promotions.js';
 import {createRepair,updateRepair} from '../src/repairs.js';
 import {addLaptopSamples} from '../src/laptop-catalog.js';
+import {validatePricing} from '../src/pricing.js';
 
 const seed=[
 {id:1,name:'Everyday Pro Laptop',category:'Laptop',description:'15.6-inch display · 16GB RAM · 512GB SSD. Sample product.',price_paise:5499900,stock:6,image_url:'',active:1},
@@ -89,7 +90,8 @@ state.catalogVersion=2;
   if(path.startsWith('/reviews/')&&method==='GET')return (state.reviews||[]).filter(r=>r.product_id===+path.split('/').pop()).map(({email,...r})=>r);
   if(path.startsWith('/admin/products')&&['POST','PUT'].includes(method)&&body.returnable&&(!Number.isInteger(body.return_days)||body.return_days<1||body.return_days>30))throw Error('Set a return window between 1 and 30 days.');
   if(['POST','PUT'].includes(method)&&path.startsWith('/admin/products'))delete body.id;
-  if(path==='/admin/products'&&method==='POST'){const p={...body,id:Date.now(),active:1};state.products.push(p);save();return p;}
+  if(['POST','PUT'].includes(method)&&path.startsWith('/admin/products')&&('price_paise' in body||'mrp_paise' in body)){const old=state.products.find(p=>p.id===+path.split('/').pop());Object.assign(body,validatePricing(body.price_paise??old?.price_paise,'mrp_paise' in body?body.mrp_paise:old?.mrp_paise));}
+if(path==='/admin/products'&&method==='POST'){const p={...body,id:Date.now(),active:1};state.products.push(p);save();return p;}
   if(path.startsWith('/admin/products/')){const p=state.products.find(p=>p.id===+path.split('/').pop());if(!p)throw Error('Product not found');if(method==='DELETE')p.active=0;else Object.assign(p,body);save();return {};}
   if(path==='/returns'&&method==='POST'){
    const order=state.orders.find(o=>o.id===body.order_id&&o.email.toLowerCase()===user.email.toLowerCase());const item=order?.items.find(i=>i.product_id===+body.product_id);

@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {discountPercent,validatePricing,priceFromDiscount,priceTag} from '../src/pricing.js';
+assert.equal(discountPercent({price_paise:80000,mrp_paise:100000}),20);
+assert.equal(discountPercent({price_paise:66600,mrp_paise:99900}),33);
+assert.equal(discountPercent({price_paise:100000}),0);
+assert.equal(discountPercent({price_paise:100000,mrp_paise:90000}),0);
+assert.deepEqual(validatePricing(80000,100000),{price_paise:80000,mrp_paise:100000});
+assert.deepEqual(validatePricing(80000,null),{price_paise:80000,mrp_paise:null});
+assert.deepEqual(validatePricing(80000,80000),{price_paise:80000,mrp_paise:null});
+assert.throws(()=>validatePricing(80000,70000),/higher/);
+assert.throws(()=>validatePricing(0,null));
+assert.throws(()=>validatePricing(10.5,null));
+assert.equal(priceFromDiscount(5999900,10),5399900);
+assert.equal(priceFromDiscount(100000,100),null);
+const money=n=>'Rs'+n/100;
+assert.match(priceTag({price_paise:80000,mrp_paise:100000},money),/Rs800.*<s[^>]*>Rs1000<\/s>.*20% off/);
+assert.equal(priceTag({price_paise:80000},money),'Rs800');
+console.log('PASS: offer pricing - discount %, validation, price from discount, price tag');

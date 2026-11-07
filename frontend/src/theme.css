@@ -66,3 +66,11 @@ html{background:var(--bg);scroll-behavior:smooth}body{background:var(--bg);color
 .admin-feed time{opacity:.65;min-width:150px}
 .admin-badge{border-radius:999px;padding:2px 9px;font-size:12px;background:rgba(127,127,127,.2)}
 .admin-login,.admin-order_placed{background:#c9f26b;color:#13200a}.admin-logout{background:rgba(255,120,120,.25)}
+
+/* Offer pricing */
+.price .price-now{color:var(--ink)}
+.price .price-was{color:var(--muted);font-size:.72em;font-weight:400;margin-left:2px}
+.price-off{display:inline-block;color:var(--accent-ink);background:var(--accent);font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;vertical-align:middle;margin-left:4px;letter-spacing:.02em}
+.form-row.price-row{grid-template-columns:1.3fr .8fr 1.3fr}
+.price-preview{margin:4px 0 6px;font-size:14px}.price-preview.error{color:#ff9d94}
+@media (max-width:640px){.form-row.price-row{grid-template-columns:1fr}}
