@@ -25,7 +25,7 @@ export async function adminPanel(view,{filterEmail='',filterType=''}={}){
  view.innerHTML='<section class="card"><p>Loading activity…</p></section>';
  const data=await load();
  if(data.source==='locked'){
-  view.innerHTML=`<section class="card admin-panel"><h2>Activity — owner access</h2><p>Enter the admin key printed when the backend started (stored in <code>frontend/data/admin-key.txt</code>, or set with the <code>ADMIN_KEY</code> environment variable).</p><form id="adminKeyForm"><label>Admin key<input name="key" type="password" autocomplete="off" required></label><button>Unlock</button></form></section>`;
+  view.innerHTML=`<section class="card admin-panel"><h2>Activity — owner access</h2><p>Sign in with an owner email, or enter the admin key printed when the backend started (stored in <code>frontend/data/admin-key.txt</code>, or set with the <code>ADMIN_KEY</code> environment variable).</p><form id="adminKeyForm"><label>Admin key<input name="key" type="password" autocomplete="off" required></label><button>Unlock</button></form></section>`;
   view.querySelector('#adminKeyForm').onsubmit=e=>{e.preventDefault();adminKey.set(new FormData(e.target).get('key').trim());adminPanel(view);};
   return;
  }

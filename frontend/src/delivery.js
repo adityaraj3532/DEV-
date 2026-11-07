@@ -8,10 +8,10 @@ export function point(value,optional=false){
 export function canDrive(o,user){return user?.role==='delivery'&&o.assigned_to===user.email.toLowerCase()&&o.delivery_request?.status==='Accepted'&&!['Placed','Cancelled','Delivered'].includes(o.status);}
 function owner(user){if(user?.role!=='admin')throw Error('Owner access required');}
 function history(o,note,actor){o.history??=[];o.history.push({status:o.status,note,actor,at:Date.now()/1000});}
-export function sendRequest(o,user,body){
+export function sendRequest(o,user,body,partners=['delivery@demo.com']){
  owner(user);if(o.status!=='Confirmed')throw Error('Confirm the order before sending a delivery request. Requests can only be replaced before shipping.');
  if(o.delivery_request&&['Pending','Accepted'].includes(o.delivery_request.status))throw Error('Withdraw the existing request before sending another one.');
- if(body.assigned_to!=='delivery@demo.com')throw Error('Choose the available local delivery partner.');
+ if(!partners.map(p=>p.toLowerCase()).includes(String(body.assigned_to||'').toLowerCase()))throw Error('Choose an available delivery partner.');body.assigned_to=String(body.assigned_to).toLowerCase();
  const pickup=point(body.pickup),dropoff=point(body.dropoff);
  const pickupAddress=String(body.pickup_address||'').trim();if(pickupAddress.length<5||pickupAddress.length>500)throw Error('Enter a pickup address in 5–500 characters.');
  if(!String(o.address||'').trim())throw Error('This order needs a delivery address before dispatch.');

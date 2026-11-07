@@ -1,7 +1,8 @@
-const fs=require('node:fs');const vm=require('node:vm');const assert=require('node:assert/strict');
-const source=fs.readFileSync('src/local-app.js','utf8');const apiCode=source.slice(source.indexOf('async function api('),source.indexOf('\nfunction action('));
-const ctx={user:{email:'owner@demo.com',role:'admin'},state:{products:[{id:1,name:'Laptop',price_paise:10000,stock:3,active:1}],orders:[]},save(){},sessionStorage:{setItem(){},removeItem(){}}};vm.createContext(ctx);vm.runInContext(apiCode,ctx);
-(async()=>{Object.assign(ctx,await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('src/delivery.js','utf8')).toString('base64')));
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),assert=require('node:assert/strict');
+// These rules now run on the server (server/shop.mjs); the checks drive it directly.
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'shop-check-'));process.on('exit',()=>fs.rmSync(dir,{recursive:true,force:true}));
+const ctx={user:{email:'owner@demo.com',role:'admin'},state:{products:[{id:1,name:'Laptop',price_paise:10000,stock:3,active:1}],orders:[]},save(){},sessionStorage:{setItem(){},removeItem(){}}};
+(async()=>{fs.writeFileSync(path.join(dir,'shop.json'),JSON.stringify(ctx.state));const {createShop}=await import('../server/shop.mjs');const shop=createShop(dir,{partners:['delivery@demo.com']});ctx.state=shop.state();ctx.api=async(p,m='GET',b)=>shop.handle(ctx.user,p,m,b);
 const order=await ctx.api('/orders','POST',{name:'Demo',phone:'9876543210',address:'Sample address',payment_method:'Online demo',items:[{product_id:1,quantity:1}]});
 assert.equal(order.status,'Placed','Even online-paid demo orders must await approval');
 await assert.rejects(()=>ctx.api('/admin/orders/'+order.id,'PUT',{status:'Shipped'}),/not allowed/);
@@ -16,6 +17,6 @@ ctx.user={email:'delivery@demo.com',role:'delivery'};assert.equal((await ctx.api
 await assert.rejects(()=>ctx.api('/delivery/orders/'+order.id,'PUT',{status:'Shipped',note:'Too early'}),/Accept/);
 await ctx.api('/delivery/requests/'+order.id,'POST',{request_id:order.delivery_request.id,decision:'Accepted'});
 await ctx.api('/delivery/orders/'+order.id,'PUT',{status:'Shipped',note:'Dispatched'});assert.equal(order.status,'Shipped');
-ctx.user={email:'owner@demo.com',role:'admin'};const rejected=await ctx.api('/orders','POST',{items:[{product_id:1,quantity:1}]});await ctx.api('/admin/orders/'+rejected.id,'PUT',{status:'Cancelled'});assert.equal(ctx.state.products[0].stock,2,'Rejecting restores reserved stock');
+ctx.user={email:'owner@demo.com',role:'admin'};const rejected=await ctx.api('/orders','POST',{items:[{product_id:1,quantity:1}]});await ctx.api('/admin/orders/'+rejected.id,'PUT',{status:'Cancelled'});assert.equal(ctx.state.products.find(p=>p.id===1).stock,2,'Rejecting restores reserved stock');
 console.log('PASS: pending order locks, owner-only approval, delivery release after confirmation, rejection stock restoration');
 })().catch(e=>{console.error(e);process.exit(1);});

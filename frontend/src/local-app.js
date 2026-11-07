@@ -6,8 +6,9 @@ import {icon,productIcons} from './icons.js';
 import {canDrive,point,sendRequest,respondRequest,withdrawRequest,shareLocation,distanceKm} from './delivery.js';
 import {createDeliveryMap} from './delivery-map.js';
 import {promotionStatus, validatePromotion} from './promotions.js';
-import {track,storedCustomer,storeCustomer,validateCustomer,requestOtp,verifyOtp,checkSession,signOut} from './activity.js';
+import {track,storedCustomer,storeCustomer,validateCustomer,requestOtp,verifyOtp,checkSession,signOut,API} from './activity.js';
 import {adminPanel} from './admin-panel.js';
+import {renderCheckout,renderPayment,addressFields,validateAddress,showErrors,wireAddressInputs,formatAddress as formatCheckoutAddress} from './checkout.js';
 'use strict';
 let user=null, products=[], cart={}, editing=null;
 const view=document.querySelector('#view'), nav=document.querySelector('#navigation');
@@ -17,32 +18,34 @@ document.body.classList.add(adminPath?'owner-portal':deliveryPath?'delivery-port
 const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format(n/100);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let messageTimer;const message=s=>{const el=document.querySelector('#message');el.textContent=s;clearTimeout(messageTimer);messageTimer=setTimeout(()=>el.textContent='',5000);};
-const seed=[
-{id:1,name:'Everyday Pro Laptop',category:'Laptop',description:'15.6-inch display · 16GB RAM · 512GB SSD. Sample product.',price_paise:5499900,stock:6,image_url:'',active:1},
-{id:2,name:'Studio Wireless Headphones',category:'Headphone',description:'Noise cancellation · 40-hour battery · soft ear cushions.',price_paise:399900,stock:15,image_url:'',active:1},
-{id:3,name:'Creator USB Microphone',category:'Microphone',description:'Clear vocals for streaming, podcasts, and online classes.',price_paise:249900,stock:8,image_url:'',active:1},
-{id:4,name:'Mirrorless Creator Camera',category:'Camera',description:'4K video · interchangeable lens · compact creator kit.',price_paise:6299900,stock:3,image_url:'',active:1}
-];
-let state=JSON.parse(localStorage.getItem('electroshop-direct-preview-v1')||'null')||{products:seed,orders:[]};
+// Mirror of the shop on the server (server/shop.mjs), refreshed after every api() call.
+let state={products:[],orders:[],promotions:[],reviews:[],returns:[],repairs:[],customers:{},customCategories:[]};
 state.promotions??=[];
 let categories=['Laptop','Charger','Camera','Headphone','Speaker','Microphone','Other'];
 const categoryLabels={Laptop:'Laptops',Charger:'Chargers',Camera:'Cameras',Headphone:'Headphones',Speaker:'Speakers',Microphone:'Microphones',Other:'Other'};
 const icons=productIcons;
-const extraProducts=[
-['Dell Inspiron 15','Laptop','Dell',49999,7],['HP Pavilion','Laptop','HP',59999,4],['Lenovo IdeaPad Slim','Laptop','Lenovo',42999,6],
-['Samsung 25W USB-C Charger','Charger','Samsung',1299,20],['Anker 65W GaN Charger','Charger','Anker',3499,12],['Apple 20W USB-C Adapter','Charger','Apple',1899,10],
-['Sony Alpha Camera Kit','Camera','Sony',72999,3],['Nikon Creator Camera','Camera','Nikon',68999,2],
-['Sony Wireless Headphones','Headphone','Sony',8999,9],['boAt Rockerz Headphones','Headphone','boAt',1999,18],
-['JBL Portable Speaker','Speaker','JBL',4499,10],['boAt Bluetooth Speaker','Speaker','boAt',1499,15],['Sony Wireless Speaker','Speaker','Sony',6999,5]
-];
-if(!state.catalogVersion){
-state.products.forEach(p=>p.brand=p.brand||({Laptop:'ASUS',Headphone:'JBL',Microphone:'Maono',Camera:'Canon'})[p.category]||'Other');
-extraProducts.forEach((a,i)=>state.products.push({id:100+i,name:a[0],category:a[1],brand:a[2],price_paise:a[3]*100,stock:a[4],description:'Sample product for preview. Replace with your shop’s product details.',image_url:'',active:1}));
-state.catalogVersion=2;localStorage.setItem('electroshop-direct-preview-v1',JSON.stringify(state));
+// Guest cart/wishlist stays in this browser; a signed-in user's own record is saved on the server.
+const GUEST_KEY='devcomputer-guest-v1';
+try{const g=JSON.parse(localStorage.getItem(GUEST_KEY)||'null');if(g)state.customers.guest=g;}catch{}
+let pushTimer=null;
+const save=()=>{
+ try{if(state.customers?.guest)localStorage.setItem(GUEST_KEY,JSON.stringify(state.customers.guest));else localStorage.removeItem(GUEST_KEY);}catch{}
+ if(!user)return;clearTimeout(pushTimer);
+ pushTimer=setTimeout(()=>{pushTimer=null;shopCall('/me','PUT',state.customers[customerKey()]||{}).catch(e=>message('Could not save your changes: '+e.message));},400);
+};
+async function shopCall(path,method='GET',body){
+ const token=storedCustomer()?.token;let r;
+ try{r=await fetch(API+'/api/shop'+path,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:method==='GET'||method==='DELETE'?undefined:JSON.stringify(body??{})});}
+ catch{throw Error('Cannot reach the shop server. Check your connection and try again.');}
+ const data=await r.json().catch(()=>({}));if(!r.ok)throw Error(data.error||'Request failed ('+r.status+')');return data;
 }
-const save=()=>{try{localStorage.setItem('electroshop-direct-preview-v1',JSON.stringify(state));}catch{state=JSON.parse(localStorage.getItem('electroshop-direct-preview-v1'));throw Error('Browser storage is full. Use a smaller photo or remove an unused photo.');}};
+async function refreshState(){
+ const guest=state.customers?.guest,key=user?customerKey():null,mine=pushTimer&&key?state.customers[key]:null;
+ const next=await shopCall('/state');
+ if(guest)next.customers.guest=guest;if(mine)next.customers[key]=mine;
+ state=next;
+}
 
-if(addLaptopSamples(state))save();
 
 function customerKey(){return user?.email.toLowerCase()||'guest';}
 function savedData(){state.customers??={};return state.customers[customerKey()]??=( {wishlist:[],later:[],cart:{}} );}
@@ -60,83 +63,11 @@ function ratingSummary(id){const r=(state.reviews||[]).filter(r=>r.product_id===
 function canReturn(order,item){return order.status==='Delivered'&&item.returnable&&order.delivered_at&&Date.now()/1000<=order.delivered_at+(item.return_days||7)*86400;}
 async function api(path,method='GET',body){
 if(typeof reloadLocal==='function')reloadLocal();
-if(path==='/auth/me'){if(!adminPath&&!deliveryPath){const c=await checkSession();user=c?{email:c.email,name:c.name,phone:c.phone,role:'customer'}:null;return user;}user={email:deliveryPath?'delivery@demo.com':adminPath?'owner@demo.com':'customer@demo.com',role:deliveryPath?'delivery':adminPath?'admin':'customer'};return user;}
+if(path==='/auth/me'){const c=await checkSession();user=c?{email:c.email,name:c.name,phone:c.phone,role:c.role||'customer'}:null;await refreshState();return user;}
 if(path==='/auth/request-otp'){sessionStorage.setItem('demoEmail',body.email);return {message:'Demo code: 123456. No email is sent in this preview.'};}
 if(path==='/auth/verify-otp'){if(body.code!=='123456')throw Error('Use the demo OTP: 123456');const u={email:body.email,role:body.email.toLowerCase()==='owner@demo.com'?'admin':body.email.toLowerCase()==='delivery@demo.com'?'delivery':'customer'};sessionStorage.setItem('demoUser',JSON.stringify(u));return u;}
-if(path==='/auth/logout'){track('logout',user);if(user?.role==='customer')await signOut();sessionStorage.removeItem('demoUser');return {};}
-if(path==='/products')return state.products.filter(p=>p.active);
-if(path.startsWith('/reviews/')&&method==='GET')return (state.reviews||[]).filter(r=>r.product_id===+path.split('/').pop()).map(({email,...r})=>r);
-if(!user)throw Error('Please log in');
-if(path.startsWith('/admin/')&&user.role!=='admin')throw Error('Owner access required');
-if(path.startsWith('/admin/products')&&['POST','PUT'].includes(method)&&body.returnable&&(!Number.isInteger(body.return_days)||body.return_days<1||body.return_days>30))throw Error('Set a return window between 1 and 30 days.');
-if(path==='/admin/products'&&method==='POST'){const p={...body,id:Date.now(),active:1};state.products.push(p);save();return p;}
-if(path.startsWith('/admin/products/')){const p=state.products.find(p=>p.id===+path.split('/').pop());if(!p)throw Error('Product not found');if(method==='DELETE')p.active=0;else Object.assign(p,body);save();return {};}
-if(path==='/returns'&&method==='POST'){
- const order=state.orders.find(o=>o.id===body.order_id&&o.email.toLowerCase()===user.email.toLowerCase());const item=order?.items.find(i=>i.product_id===+body.product_id);
- if(!order||!item)throw Error('You can only return items from your own order.');
- if(!canReturn(order,item))throw Error('This item is not eligible for return, or its return window has closed.');
- if((state.returns||[]).some(r=>r.order_id===order.id&&r.product_id===item.product_id))throw Error('A return request already exists for this item.');
- if(!body.reason||body.reason.trim().length<5||body.reason.length>1000)throw Error('Describe the return reason in 5–1000 characters.');
- const r={id:'RETURN-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),order_id:order.id,product_id:item.product_id,name:item.name,quantity:item.quantity,email:user.email,status:'Requested',reason:body.reason.trim(),created:Date.now()/1000,notes:''};(state.returns??=[]).unshift(r);save();return r;
-}
-if(path.startsWith('/admin/returns/')&&method==='PUT'){
- const r=(state.returns||[]).find(r=>r.id===path.split('/').pop());if(!r)throw Error('Return request not found');
- const allowed={Requested:['Approved','Rejected'],Approved:['Received'],Rejected:[],Received:[]};if(!allowed[r.status].includes(body.status))throw Error('This return status change is not allowed.');
- if(!body.notes||body.notes.trim().length<3)throw Error('Add a short note for the customer.');
- if(body.status==='Received'){const p=state.products.find(p=>p.id===r.product_id);if(p)p.stock+=r.quantity;}
- r.status=body.status;r.notes=body.notes.trim().slice(0,1000);r.updated=Date.now()/1000;save();return r;
-}
-if(path==='/reviews'&&method==='POST'){
- const order=state.orders.find(o=>o.id===body.order_id&&o.email.toLowerCase()===user.email.toLowerCase()&&o.status==='Delivered');
- if(!order?.items.some(i=>i.product_id===+body.product_id))throw Error('Only customers with a delivered order for this product can review it.');
- if(!Number.isInteger(body.rating)||body.rating<1||body.rating>5)throw Error('Choose a rating from 1 to 5.');
- if(!body.text||body.text.trim().length<3||body.text.length>2000)throw Error('Write a review in 3–2000 characters.');
- if(body.photo&&(!/^data:image\/jpeg;base64,/.test(body.photo)||body.photo.length>800000))throw Error('Choose a smaller JPG, PNG, or WebP photo.');
- const reviews=state.reviews??=[],old=reviews.find(r=>r.product_id===+body.product_id&&r.email.toLowerCase()===user.email.toLowerCase());
- const review={id:old?.id||'REVIEW-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),product_id:+body.product_id,order_id:order.id,email:user.email,display_name:String(body.display_name||'Customer').trim().slice(0,60)||'Customer',rating:body.rating,text:body.text.trim(),photo:body.photo||'',created:old?.created||Date.now()/1000,updated:Date.now()/1000};
- if(old)Object.assign(old,review);else reviews.unshift(review);save();return {message:'Review published'};
-}
-if(path==='/orders'&&method==='POST'){
- const destination=point(body.destination,true);
- const items=body.items.map(i=>{const p=state.products.find(p=>p.id===i.product_id&&p.active);if(!p||p.stock<i.quantity)throw Error('Insufficient stock. Refresh your cart.');return {...i,name:p.name,price_paise:p.price_paise,returnable:!!p.returnable,return_days:p.returnable?(p.return_days||7):0};});
- let total=items.reduce((s,i)=>s+i.price_paise*i.quantity,0);if(total<100000)total+=4900;
- const o={id:'DEMO-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,5).toUpperCase(),email:user.email,destination,name:body.name,phone:body.phone,address:body.address,items,total_paise:total,status:'Placed',payment_method:body.payment_method||'COD',payment_status:body.payment_method==='Online demo'?'Simulated success — no money charged':'Pay on delivery',payment_reference:body.payment_reference||'',history:[{status:'Placed',note:'Order received. Waiting for owner confirmation.',at:Date.now()/1000,actor:'Customer'}],created:Date.now()/1000};
- items.forEach(i=>state.products.find(p=>p.id===i.product_id).stock-=i.quantity);state.orders.unshift(o);save();return o;
-}
-if(path==='/orders')return state.orders.filter(o=>o.email===user.email);
-if(path==='/admin/orders')return state.orders;
-if(path.startsWith('/admin/delivery-requests/')&&method==='POST'){
- const o=state.orders.find(o=>o.id===path.split('/').pop());if(!o)throw Error('Order not found');sendRequest(o,user,body);save();return o;
-}
-if(path.startsWith('/admin/withdraw-delivery/')&&method==='POST'){
- const o=state.orders.find(o=>o.id===path.split('/').pop());if(!o)throw Error('Order not found');withdrawRequest(o,user);save();return o;
-}
-if(path.startsWith('/delivery/requests/')&&method==='POST'){
- const o=state.orders.find(o=>o.id===path.split('/').pop());if(!o)throw Error('Order not found');respondRequest(o,user,body);save();return o;
-}
-if(path.startsWith('/delivery/location/')&&method==='POST'){
- const o=state.orders.find(o=>o.id===path.split('/').pop());if(!o)throw Error('Order not found');shareLocation(o,user,body);save();return o;
-}
-if(path==='/delivery/orders'){if(user.role!=='delivery')throw Error('Delivery access required');return state.orders.filter(o=>o.assigned_to===user.email.toLowerCase()&&!['Placed','Cancelled'].includes(o.status));}
-if(path.startsWith('/admin/orders/')||path.startsWith('/delivery/orders/')){
- const o=state.orders.find(o=>o.id===path.split('/').pop());if(!o)throw Error('Order not found');
- const isOwner=user.role==='admin';
- if(!isOwner&&(user.role!=='delivery'||o.assigned_to!==user.email.toLowerCase()))throw Error('This delivery is not assigned to you');
- if(o.status==='Placed'&&['assigned_to','courier','tracking','eta'].some(k=>k in body))throw Error('The owner must confirm this order before assigning or updating delivery.');
- if(!isOwner&&o.status!=='Placed'&&!canDrive(o,user))throw Error('Accept the delivery request before updating delivery status.');
- if(o.status==='Placed'&&!isOwner)throw Error('Only the owner can confirm or reject a new order.');
- if('assigned_to' in body)throw Error('Use Send delivery request to invite a delivery partner.');
- if(body.status&&['Shipped','Out for delivery','Delivered','Delivery failed'].includes(body.status)&&o.assigned_to&&o.delivery_request?.status!=='Accepted')throw Error('The delivery partner must accept the request before dispatch.');
- const allowed={Placed:['Confirmed','Cancelled'],Confirmed:['Shipped','Cancelled'],Shipped:['Out for delivery','Delivered','Delivery failed'], 'Out for delivery':['Delivered','Delivery failed'],'Delivery failed':['Out for delivery'],Delivered:[],Cancelled:[]};
- if(body.status&&body.status!==o.status){if(!allowed[o.status]?.includes(body.status)||(!isOwner&&!['Shipped','Out for delivery','Delivered','Delivery failed'].includes(body.status)))throw Error('This status change is not allowed');if(body.status==='Cancelled')o.items.forEach(i=>state.products.find(p=>p.id===i.product_id).stock+=i.quantity);if(body.status==='Delivered')o.delivered_at=Date.now()/1000;o.status=body.status;}
- if('assigned_to' in body)throw Error('Use Send delivery request to invite a delivery partner.');
- if('courier' in body)o.courier=body.courier;
- if('tracking' in body)o.tracking=body.tracking;
- if('eta' in body)o.eta=body.eta;
- o.history??=[{status:'Placed',note:'Order received. Waiting for owner confirmation.',at:o.created,actor:'Customer'}];
- o.history.push({status:o.status,note:body.note||'Delivery information updated',at:Date.now()/1000,actor:isOwner?'Shop owner':'Delivery partner'});save();return {};
-}
-throw Error('Unknown demo action');
+if(path==='/auth/logout'){track('logout',user);await signOut();sessionStorage.removeItem('demoUser');user=null;await refreshState();return {};}
+const result=await shopCall(path,method,body);await refreshState();return result;
 }
 function action(fn){return async e=>{e?.preventDefault();const button=e?.submitter||e?.currentTarget;if(button?.tagName==='BUTTON')button.disabled=true;try{await fn(e);}catch(err){message(err.message);}finally{if(button?.tagName==='BUTTON')button.disabled=false;}};}
 function navigation(){
@@ -158,7 +89,7 @@ function navigation(){
 }
 
 function login(destination='shop'){
- if(!adminPath&&!deliveryPath){customerSignIn(destination);return;}
+ customerSignIn(destination);return;
  user={email:deliveryPath?'delivery@demo.com':adminPath?'owner@demo.com':'customer@demo.com',role:deliveryPath?'delivery':adminPath?'admin':'customer'};
  restoreCart();navigation();
  if(destination==='profile')profileView();else if(destination==='orders'||deliveryPath)orders();else if(destination==='checkout')checkoutForm();else shop();
@@ -169,7 +100,7 @@ async function shop(restore={}){
  selectNav('navShop');
  if(deliveryPath){if(!user||user.role!=='delivery'){login();return;}await orders();return;}
  products=await api('/products');
- if(adminPath){if(!user){login();return;}if(user.role!=='admin'){view.innerHTML='<div class="card"><h2>Owner access required</h2><p>Click Try owner login above to preview the owner portal.</p></div>';return;}}
+ if(adminPath){if(!user){login();return;}if(user.role!=='admin'){view.innerHTML='<div class="card"><h2>Owner access required</h2><p>Sign in with an owner email. Owners are set with OWNER_EMAILS on the server.</p><button id="switchToOwner">Sign in as owner</button></div>';document.querySelector('#switchToOwner').onclick=action(async()=>{await api('/auth/logout','POST');restoreCart();navigation();login();});return;}}
  view.innerHTML=`<div class="shop-search"><span>${icon('search')}</span><input id="search" placeholder="Search your next upgrade" aria-label="Search electronics"><button id="filterToggle" class="icon-button" aria-label="Show product filters" aria-expanded="${adminPath?'true':'false'}">${icon('filter')}</button></div>${promotionBanner()}<div class="section-bar"><h2>${adminPath?'Manage your shop':'Shop by category'}</h2><button class="subtle-link" id="allCategories">View all ${icon('arrow')}</button></div><div class="category-tabs" role="group" aria-label="Product categories"><button data-category="" class="selected"><span class="category-icon">${icon('box')}</span><span>All items</span></button>${categories.filter(c=>c!=='Other').map(c=>`<button data-category="${esc(c)}" class="secondary"><span class="category-icon">${categoryIcon(c)}</span><span>${esc(categoryLabels[c])}</span></button>`).join('')}</div><div id="advancedFilters" ${adminPath?'':'hidden'}><div class="card filters"><label>Company / Brand<select id="brand"><option value="">All companies</option>${[...new Set(products.map(p=>p.brand||'Other'))].sort().map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('')}</select></label><label>Min price (₹)<input id="minPrice" type="number" min="0" placeholder="0"></label><label>Max price (₹)<input id="maxPrice" type="number" min="0" placeholder="Any price"></label><label>Sort by<select id="sort"><option value="featured">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select></label><button id="clearFilters" class="secondary">Clear filters</button></div></div><div class="section-bar"><h2>${adminPath?'Your inventory':'The curated edit'}</h2>${adminPath?'<button id="newProduct">'+icon('plus')+' Add product</button>':'<button id="viewAllProducts" class="subtle-link">View all '+icon('arrow')+'</button>'}</div><div class="catalog-meta"><span id="resultCount" class="muted" role="status"></span>${adminPath?'':'<button id="cart" class="subtle-link">View cart '+icon('bag')+'</button>'}</div><div id="catalog"></div><div class="store-promise">${icon('shield')} <span>Thoughtfully chosen tech. Personal service.</span></div>`;
  document.querySelector('#filterToggle').onclick=()=>{const panel=document.querySelector('#advancedFilters');panel.hidden=!panel.hidden;document.querySelector('#filterToggle').setAttribute('aria-expanded',String(!panel.hidden));};
  if(adminPath){document.querySelector('#allCategories').insertAdjacentHTML('beforebegin','<button id="manageCategories" class="secondary">Manage categories</button>');document.querySelector('#manageCategories').onclick=categoryManager;}
@@ -254,27 +185,17 @@ function stockView(){
  document.querySelectorAll('[data-restock]').forEach(b=>b.onclick=()=>productForm(all.find(p=>p.id===+b.dataset.restock)));
 }
 
+function checkoutContext(){return {view,esc,money,itemVisual,returnLabel,placeSearch,captureLocation,point,action,message,
+ products:()=>state.products,savedData,save,
+ cartItems:()=>Object.entries(cart).filter(([,q])=>q>0).map(([id,quantity])=>({product_id:+id,quantity})),
+ placeOrder:placeCheckout,back:cartView,payment:(body,back)=>renderPayment(checkoutContext(),body,back)};}
 function checkoutForm(draft={}){
  if(!user){login('checkout');return;}
- const data=savedData(),profile=data.profile||{},addresses=data.addresses||[];let selected=addresses.find(a=>a.id===data.defaultAddress)||addresses[0];
- view.innerHTML=`<div class="card"><h2>Checkout</h2><p class="notice">Your order will be sent to the owner for confirmation. Packing and delivery begin only after the owner accepts it.</p><p class="muted">Use a saved address or enter a new delivery address.</p><div class="card checkout-policy"><h3>Return policy for your items</h3>${Object.entries(cart).filter(([,q])=>q>0).map(([id])=>{const p=state.products.find(p=>p.id===+id);return p?`<p><strong>${esc(p.name)}</strong><br><span class="policy-tag">${returnLabel(p)}</span></p>`:'';}).join('')}</div><form id="checkoutForm">${addresses.length?`<label>Saved delivery address<select id="savedAddress"><option value="">Enter a different address</option>${addresses.map(a=>`<option value="${esc(a.id)}" ${a.id===selected?.id?'selected':''}>${esc(a.label)} — ${esc(a.line)}, ${esc(a.city)}</option>`).join('')}</select></label>`:''}<button id="manageAddresses" type="button" class="secondary">Manage saved addresses</button><label>Full name<input name="name" minlength="2" maxlength="120" required autocomplete="name" value="${esc(draft.name||selected?.name||profile.name)}"></label><label>Indian mobile number<input name="phone" type="tel" pattern="[6-9][0-9]{9}" required autocomplete="tel" value="${esc(draft.phone||selected?.phone||profile.phone)}"></label><label>Full address, city, state and PIN code<textarea name="address" minlength="10" maxlength="1000" required autocomplete="street-address">${draft.address?esc(draft.address):selected?esc(formatAddress(selected)):''}</textarea></label><fieldset><legend>Delivery location (optional)</legend><p class="muted">Search an area and city, or use GPS. Your written address is still required.</p><div id="checkoutPlace"></div><input name="destination_lat" id="destinationLat" type="hidden"><input name="destination_lng" id="destinationLng" type="hidden"><button id="useDeliveryLocation" type="button" class="secondary">Use my current location</button><small id="checkoutGeoStatus" role="status"></small></fieldset><fieldset><legend>Payment method</legend><label class="radio-label"><input type="radio" name="payment" value="COD" checked> Cash on delivery</label><label class="radio-label"><input type="radio" name="payment" value="Online demo"> Online payment preview · UPI / card / net banking</label></fieldset><p class="notice">Online payment here is a simulation. No money is collected. Never enter real card details or a UPI PIN in this demo.</p><button id="placeOrder">Submit order · Cash on delivery</button> <button id="back" type="button" class="secondary">Back to cart</button></form></div>`;
- placeSearch(document.querySelector('#checkoutPlace'),p=>{document.querySelector('#destinationLat').value=p.lat;document.querySelector('#destinationLng').value=p.lng;});
- document.querySelector('#useDeliveryLocation').onclick=()=>captureLocation(p=>{document.querySelector('#destinationLat').value=p.lat;document.querySelector('#destinationLng').value=p.lng;},document.querySelector('#checkoutGeoStatus'));
- document.querySelector('#manageAddresses').onclick=()=>profileView();
- if(addresses.length)document.querySelector('#savedAddress').onchange=e=>{selected=addresses.find(a=>a.id===e.target.value);document.querySelector('[name="name"]').value=selected?.name||profile.name||'';document.querySelector('[name="phone"]').value=selected?.phone||profile.phone||'';document.querySelector('[name="address"]').value=selected?formatAddress(selected):'';};
- document.querySelectorAll('[name="payment"]').forEach(r=>r.onchange=()=>document.querySelector('#placeOrder').textContent=r.value==='COD'?'Submit order · Cash on delivery':'Continue to payment preview');
- document.querySelector('#back').onclick=cartView;
- document.querySelector('#checkoutForm').onsubmit=action(async e=>{const f=Object.fromEntries(new FormData(e.target));const body={name:f.name,phone:f.phone,address:f.address,payment_method:f.payment,destination:point({lat:f.destination_lat,lng:f.destination_lng},true),items:Object.entries(cart).filter(([,q])=>q>0).map(([id,quantity])=>({product_id:+id,quantity}))};if(body.payment_method==='Online demo'){paymentPreview(body);return;}await placeCheckout(body);});
+ renderCheckout(checkoutContext(),draft);
 }
 async function placeCheckout(body){const result=await api('/orders','POST',body);track('order_placed',user,{order_id:String(result.id),total_paise:result.total_paise});cart={};saveCart();message('Order '+result.id+' submitted. Waiting for the owner to confirm. Total: '+money(result.total_paise));await orders();}
-function paymentPreview(body){
- let subtotal=0;for(const i of body.items){const p=state.products.find(p=>p.id===i.product_id&&p.active);if(!p||p.stock<i.quantity)throw Error('Please refresh your cart: stock has changed.');subtotal+=p.price_paise*i.quantity;}const total=subtotal+(subtotal<100000?4900:0);
- view.innerHTML=`<section class="card payment-preview"><span class="status-pill">DEMO PAYMENT · NO REAL TRANSACTION</span><h2>Online checkout preview</h2><p class="price">${money(total)}</p><p>Choose a method to preview the payment result. This is not connected to a payment gateway.</p><label>Payment method<select id="demoPaymentMethod"><option>UPI</option><option>Debit / credit card</option><option>Net banking</option></select></label><p class="notice">No card number, bank details, OTP, or UPI PIN is required.</p><div class="row"><button id="demoPay">Simulate successful payment</button><button id="demoFail" class="secondary">Simulate failed payment</button><button id="cancelPay" class="secondary">Cancel</button></div></section>`;
- document.querySelector('#demoPay').onclick=action(async()=>{body.payment_reference='DEMO-PAY-'+Date.now().toString(36).toUpperCase();body.payment_channel=document.querySelector('#demoPaymentMethod').value;await placeCheckout(body);message('Simulated payment succeeded. Your order is awaiting owner confirmation. No money was charged.');});
- document.querySelector('#demoFail').onclick=()=>{checkoutForm(body);message('Simulated payment failed. No order was created and your cart is unchanged. You can retry or choose cash on delivery.');};
- document.querySelector('#cancelPay').onclick=()=>{checkoutForm(body);message('Payment preview cancelled. Your cart is unchanged.');};
-}
-function formatAddress(a){return `${a.line}, ${a.city}, ${a.state} ${a.pin}`;}
+function paymentPreview(body,back){renderPayment(checkoutContext(),body,back);}
+function formatAddress(a){return formatCheckoutAddress(a);}
 function profileDetailsView(mode='details'){
  selectNav('navProfile');
  if(!user){login('profile');return;}
@@ -290,10 +211,11 @@ function profileDetailsView(mode='details'){
 }
 function addressForm(a={}){
  const profile=savedData().profile||{};
- view.innerHTML=`<section class="card"><h2>${a.id?'Edit':'Add'} address</h2><form id="addressForm"><label>Address label<input name="label" placeholder="Home, Work…" required maxlength="40" value="${esc(a.label||'Home')}"></label><label>Recipient name<input name="name" required minlength="2" maxlength="120" value="${esc(a.name||profile.name)}"></label><label>Mobile number<input name="phone" type="tel" pattern="[6-9][0-9]{9}" required value="${esc(a.phone||profile.phone)}"></label><label>House, street and locality<textarea name="line" minlength="5" maxlength="500" required>${esc(a.line)}</textarea></label><div class="form-row"><label>City<input name="city" required maxlength="80" value="${esc(a.city)}"></label><label>State<input name="state" required maxlength="80" value="${esc(a.state)}"></label></div><label>PIN code<input name="pin" inputmode="numeric" pattern="[1-9][0-9]{5}" maxlength="6" required value="${esc(a.pin)}"></label><button>Save address</button> <button id="cancelAddress" type="button" class="secondary">Cancel</button></form></section>`;
+ view.innerHTML=`<section class="card co-section"><h2>${a.id?'Edit':'Add'} address</h2><form id="addressForm" novalidate>${addressFields(esc,{name:profile.name,phone:profile.phone,...a})}<div class="row"><button>Save address</button> <button id="cancelAddress" type="button" class="secondary">Cancel</button></div></form></section>`;
  pageBack(()=>profileDetailsView('addresses'),'Back to saved addresses');
+ const form=document.querySelector('#addressForm');wireAddressInputs(form);
  document.querySelector('#cancelAddress').onclick=()=>profileDetailsView('addresses');
- document.querySelector('#addressForm').onsubmit=action(e=>{const f=Object.fromEntries(new FormData(e.target));for(const k of ['label','name','line','city','state']){f[k]=f[k].trim();if(!f[k])throw Error('Please fill in all address fields.');}const data=savedData();data.addresses??=[];const record={...f,id:a.id||'ADDR-'+Date.now()};const index=data.addresses.findIndex(x=>x.id===record.id);if(index<0)data.addresses.push(record);else data.addresses[index]=record;if(!data.defaultAddress)data.defaultAddress=record.id;save();profileDetailsView('addresses');message('Address saved. You can choose it during checkout.');});
+ form.onsubmit=action(e=>{const {address,errors}=validateAddress(Object.fromEntries(new FormData(form)));if(!showErrors(form,errors))throw Error('Please correct the highlighted address fields.');const data=savedData();data.addresses??=[];const record={...address,id:a.id||'ADDR-'+Date.now()};const index=data.addresses.findIndex(x=>x.id===record.id);if(index<0)data.addresses.push(record);else data.addresses[index]=record;if(!data.defaultAddress)data.defaultAddress=record.id;save();profileDetailsView('addresses');message('Address saved. You can choose it during checkout.');});
 }
 
 async function orders(){
@@ -401,8 +323,8 @@ function offersView(filter='All'){
  if(!owner)return;
  document.querySelector('#addPromotion').onclick=()=>promotionForm();
  document.querySelectorAll('[data-promo-edit]').forEach(b=>b.onclick=()=>promotionForm(state.promotions.find(p=>p.id===b.dataset.promoEdit)));
- document.querySelectorAll('[data-promo-toggle]').forEach(b=>b.onclick=action(()=>{const p=state.promotions.find(p=>p.id===b.dataset.promoToggle);p.published=!p.published;save();offersView(filter);message(p.published?'Promotion published':'Promotion unpublished');}));
- document.querySelectorAll('[data-promo-delete]').forEach(b=>b.onclick=action(()=>{if(confirm('Delete this promotion?')){state.promotions=state.promotions.filter(p=>p.id!==b.dataset.promoDelete);save();offersView(filter);message('Promotion deleted');}}));
+ document.querySelectorAll('[data-promo-toggle]').forEach(b=>b.onclick=action(async()=>{const p=state.promotions.find(p=>p.id===b.dataset.promoToggle);p.published=!p.published;await api('/admin/promotions','PUT',{promotions:state.promotions});offersView(filter);message(p.published?'Promotion published':'Promotion unpublished');}));
+ document.querySelectorAll('[data-promo-delete]').forEach(b=>b.onclick=action(async()=>{if(confirm('Delete this promotion?')){state.promotions=state.promotions.filter(p=>p.id!==b.dataset.promoDelete);await api('/admin/promotions','PUT',{promotions:state.promotions});offersView(filter);message('Promotion deleted');}}));
 }
 function promotionForm(p={}){
  if(!adminPath||user?.role!=='admin')throw Error('Owner access required');
@@ -412,12 +334,12 @@ function promotionForm(p={}){
  document.querySelector('#promotionPhoto').onchange=async e=>{const file=e.target.files[0];if(!file)return;reading=true;document.querySelector('#savePromotion').disabled=true;try{image=await compressPhoto(file);preview();}catch(err){message(err.message);}finally{reading=false;document.querySelector('#savePromotion').disabled=false;}};
  document.querySelector('#removePromotionImage').onclick=()=>{image='';document.querySelector('#promotionPhoto').value='';preview();};
  document.querySelector('#cancelPromotion').onclick=()=>offersView();
- document.querySelector('#promotionForm').onsubmit=action(e=>{if(reading)throw Error('Wait for the image to finish.');const data=Object.fromEntries(new FormData(e.target));const record=validatePromotion({...data,id:p.id||('PROMO-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)),image,featured:data.featured==='on',published:data.published==='on'});const index=state.promotions.findIndex(x=>x.id===record.id);if(index<0)state.promotions.unshift(record);else state.promotions[index]=record;save();offersView();message('Promotion saved. Active featured promotions appear on your shop banner.');});
+ document.querySelector('#promotionForm').onsubmit=action(async e=>{if(reading)throw Error('Wait for the image to finish.');const data=Object.fromEntries(new FormData(e.target));const record=validatePromotion({...data,id:p.id||('PROMO-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)),image,featured:data.featured==='on',published:data.published==='on'});const index=state.promotions.findIndex(x=>x.id===record.id);if(index<0)state.promotions.unshift(record);else state.promotions[index]=record;await api('/admin/promotions','PUT',{promotions:state.promotions});offersView();message('Promotion saved. Active featured promotions appear on your shop banner.');});
 }
 
 // Delivery request and map UI. Local storage is shared across portals on this origin only.
 let activeMap=null,activeMapElement=null,trackingOrderId=null,geoWatch=null,sharingRequestId=null;
-function reloadLocal(){const raw=localStorage.getItem('electroshop-direct-preview-v1');if(raw){state=JSON.parse(raw);state.promotions??=[];state.reviews??=[];state.returns??=[];}}
+function reloadLocal(){}
 function captureLocation(done,status){
  if(!deviceLocation){status.textContent='Location is unavailable in this browser. Enter coordinates manually.';return;}
  status.textContent='Waiting for location permission…';
@@ -451,7 +373,7 @@ function declineRequestForm(o){
 function deliveryRequestForm(o){
  if(user?.role!=='admin'||o.status!=='Confirmed'){message('Confirm this order before sending a delivery request.');return;}
  disposeMap();const pickup=o.locations?.pickup||state.deliveryPickup||{},dropoff=o.locations?.dropoff||o.destination||{};
- view.innerHTML=`<section class="card"><h2>${icon('truck')} Send delivery request</h2><p>${esc(o.id)} · ${esc(o.name)} · ${esc(o.phone)}</p><p><strong>Customer delivery address</strong><br>${esc(o.address)}</p><form id="deliveryRequestForm"><label>Delivery partner<select name="assigned_to"><option value="delivery@demo.com">Local delivery partner · delivery@demo.com</option></select></label><label>Pickup address<textarea name="pickup_address" required minlength="5" maxlength="500" placeholder="Shop name, street, city…">${esc(pickup.label)}</textarea></label><div id="requestPlace"></div><input id="pickupLat" type="hidden" value="${esc(pickup.lat)}"><input id="pickupLng" type="hidden" value="${esc(pickup.lng)}"><input id="dropoffLat" type="hidden" value="${esc(dropoff.lat)}"><input id="dropoffLng" type="hidden" value="${esc(dropoff.lng)}"><label>Click the map to choose<select id="pinTarget"><option value="dropoff">Customer drop-off pin</option><option value="pickup">Shop pickup pin</option></select></label><button id="captureRequestPin" class="secondary" type="button">${icon('pin')} Use my current location for selected pin</button><p id="requestGeoStatus" role="status" class="muted">Search an area for the selected pin, use GPS, or click the map. Check both pins before sending.</p><div id="requestMap" class="delivery-map" role="region" aria-label="Choose pickup and delivery map pins"></div><label>Request note<textarea name="note" maxlength="500" placeholder="Collection timing or delivery instructions…">Please collect this confirmed order from the shop.</textarea></label><p class="notice">The partner must accept before dispatch. In local mode this request appears in the delivery portal on this browser and origin; it is not sent to another phone.</p><div class="row"><button>${icon('truck')} Send request</button><button type="button" id="cancelDeliveryRequest" class="secondary">Cancel</button></div></form></section>`;
+ view.innerHTML=`<section class="card"><h2>${icon('truck')} Send delivery request</h2><p>${esc(o.id)} · ${esc(o.name)} · ${esc(o.phone)}</p><p><strong>Customer delivery address</strong><br>${esc(o.address)}</p><form id="deliveryRequestForm"><label>Delivery partner<select name="assigned_to" required>${(state.delivery_partners||[]).map(e=>`<option value="${esc(e)}">${esc(e)}</option>`).join('')||'<option value="">No delivery partners - set DELIVERY_EMAILS on the server</option>'}</select></label><label>Pickup address<textarea name="pickup_address" required minlength="5" maxlength="500" placeholder="Shop name, street, city…">${esc(pickup.label)}</textarea></label><div id="requestPlace"></div><input id="pickupLat" type="hidden" value="${esc(pickup.lat)}"><input id="pickupLng" type="hidden" value="${esc(pickup.lng)}"><input id="dropoffLat" type="hidden" value="${esc(dropoff.lat)}"><input id="dropoffLng" type="hidden" value="${esc(dropoff.lng)}"><label>Click the map to choose<select id="pinTarget"><option value="dropoff">Customer drop-off pin</option><option value="pickup">Shop pickup pin</option></select></label><button id="captureRequestPin" class="secondary" type="button">${icon('pin')} Use my current location for selected pin</button><p id="requestGeoStatus" role="status" class="muted">Search an area for the selected pin, use GPS, or click the map. Check both pins before sending.</p><div id="requestMap" class="delivery-map" role="region" aria-label="Choose pickup and delivery map pins"></div><label>Request note<textarea name="note" maxlength="500" placeholder="Collection timing or delivery instructions…">Please collect this confirmed order from the shop.</textarea></label><p class="notice">The partner must accept before dispatch. In local mode this request appears in the delivery portal on this browser and origin; it is not sent to another phone.</p><div class="row"><button>${icon('truck')} Send request</button><button type="button" id="cancelDeliveryRequest" class="secondary">Cancel</button></div></form></section>`;
  const points=()=>({pickup:point({lat:document.querySelector('#pickupLat').value,lng:document.querySelector('#pickupLng').value},true),dropoff:point({lat:document.querySelector('#dropoffLat').value,lng:document.querySelector('#dropoffLng').value},true)});
  const refreshPins=()=>{try{activeMap?.update(points());}catch(err){document.querySelector('#requestGeoStatus').textContent=err.message;}};
  const fill=p=>{const target=document.querySelector('#pinTarget').value;document.querySelector('#'+target+'Lat').value=p.lat;document.querySelector('#'+target+'Lng').value=p.lng;refreshPins();};
@@ -460,7 +382,7 @@ function deliveryRequestForm(o){
  ['pickupLat','pickupLng','dropoffLat','dropoffLng'].forEach(id=>document.getElementById(id).onchange=refreshPins);
  document.querySelector('#captureRequestPin').onclick=()=>captureLocation(fill,document.querySelector('#requestGeoStatus'));
  document.querySelector('#cancelDeliveryRequest').onclick=action(orders);
- document.querySelector('#deliveryRequestForm').onsubmit=action(async e=>{const f=Object.fromEntries(new FormData(e.target)),p=points();await api('/admin/delivery-requests/'+o.id,'POST',{...f,...p});state.deliveryPickup=state.orders.find(x=>x.id===o.id).locations.pickup;save();await orders();message('Delivery request sent. Waiting for the partner to accept.');});
+ document.querySelector('#deliveryRequestForm').onsubmit=action(async e=>{const f=Object.fromEntries(new FormData(e.target)),p=points();await api('/admin/delivery-requests/'+o.id,'POST',{...f,...p});await orders();message('Delivery request sent. Waiting for the partner to accept.');});
 }
 function trackingView(order){
  disposeMap();reloadLocal();const o=state.orders.find(x=>x.id===order.id);if(!o?.locations){message('The owner needs to add pickup and drop-off pins first.');return;}
@@ -472,9 +394,9 @@ function trackingView(order){
  document.querySelector('#startSharing').onclick=()=>{
   if(!deviceLocation){message('Geolocation is unavailable. Enter a manual location.');return;}if(geoWatch!==null)return;
   sharingRequestId=o.delivery_request.id;document.querySelector('#startSharing').disabled=true;document.querySelector('#stopSharing').disabled=false;document.querySelector('#sharingStatus').textContent='Waiting for GPS permission and first position…';
-  geoWatch=deviceLocation.watchPosition(async pos=>{const requestId=sharingRequestId;if(!requestId)return;try{await api('/delivery/location/'+o.id,'POST',{request_id:requestId,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,source:'gps'});state.orders.find(x=>x.id===o.id).driver_area='Live GPS position on map';save();if(requestId!==sharingRequestId)return;updateTracking();const status=document.querySelector('#sharingStatus');if(status)status.textContent='GPS sharing is on. Latest position updated.';}catch(err){stopSharing(err.message);}},err=>{stopSharing(err.code===1?'Permission denied. Enter a manual location instead.':'GPS unavailable or timed out. Try again or enter a manual location.');},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+  geoWatch=deviceLocation.watchPosition(async pos=>{const requestId=sharingRequestId;if(!requestId)return;try{await api('/delivery/location/'+o.id,'POST',{request_id:requestId,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,source:'gps'});if(requestId!==sharingRequestId)return;updateTracking();const status=document.querySelector('#sharingStatus');if(status)status.textContent='GPS sharing is on. Latest position updated.';}catch(err){stopSharing(err.message);}},err=>{stopSharing(err.code===1?'Permission denied. Enter a manual location instead.':'GPS unavailable or timed out. Try again or enter a manual location.');},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
  };
- placeSearch(document.querySelector('#manualPlace'),async p=>{await api('/delivery/location/'+o.id,'POST',{lat:p.lat,lng:p.lng,request_id:o.delivery_request.id,source:'manual'});state.orders.find(x=>x.id===o.id).driver_area=p.label;save();updateTracking();message('Area location updated (manually selected, not live GPS).');});}
+ placeSearch(document.querySelector('#manualPlace'),async p=>{await api('/delivery/location/'+o.id,'POST',{lat:p.lat,lng:p.lng,request_id:o.delivery_request.id,source:'manual',label:p.label});updateTracking();message('Area location updated (manually selected, not live GPS).');});}
 }
 function updateTracking(){
  const o=state.orders.find(x=>x.id===trackingOrderId);if(!o||!activeMap)return;
@@ -483,7 +405,8 @@ function updateTracking(){
  const distance=document.querySelector('#distanceSummary');if(distance)distance.textContent=p?`${distanceKm(p,o.locations.dropoff).toFixed(2)} km straight-line distance to customer`:'';
  if(geoWatch!==null&&(!canDrive(o,user)||sharingRequestId!==o.delivery_request?.id))stopSharing('Sharing stopped: this delivery is no longer active or assigned.');
 }
-window.addEventListener('storage',e=>{if(e.key!=='electroshop-direct-preview-v1')return;try{reloadLocal();if(trackingOrderId)updateTracking();else if(document.querySelector('#repairCentre'))repairCentre();else if(document.querySelector('#orderList'))orders().catch(err=>message(err.message));}catch(err){message(err.message);}});
+// Live tracking: poll the server while a tracking map is open (data now lives on the server, not in this browser).
+setInterval(async()=>{if(document.hidden||!trackingOrderId)return;try{await refreshState();if(trackingOrderId)updateTracking();}catch{}},10000);
 
 function customerSignIn(destination){
  const c=storedCustomer()||{};
@@ -495,7 +418,7 @@ function otpStep(c,note,destination){
  view.innerHTML=`<section class="card"><h2>Enter your code</h2><p class="muted">${esc(note)}</p><form id="otpForm"><label>6-digit code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus></label><button>Verify and sign in</button> <button id="otpResend" type="button" class="secondary">Resend code</button> <button id="otpBack" type="button" class="secondary">Change details</button></form></section>`;
  document.querySelector('#otpBack').onclick=()=>customerSignIn(destination);
  document.querySelector('#otpResend').onclick=action(async()=>{const r=await requestOtp(c);message(r.message);});
- document.querySelector('#otpForm').onsubmit=action(async e=>{const v=await verifyOtp(c.email,new FormData(e.target).get('code').trim());user={email:v.email,name:v.name,phone:v.phone,role:'customer'};mergeGuest();restoreCart();const d=savedData();d.profile={...d.profile,name:d.profile?.name||v.name,phone:d.profile?.phone||v.phone};save();navigation();message('Signed in as '+v.name);if(destination==='profile')profileView();else if(destination==='orders')orders();else if(destination==='checkout')checkoutForm();else shop();});
+ document.querySelector('#otpForm').onsubmit=action(async e=>{const v=await verifyOtp(c.email,new FormData(e.target).get('code').trim());user={email:v.email,name:v.name,phone:v.phone,role:v.role||'customer'};await refreshState();mergeGuest();restoreCart();const d=savedData();d.profile={...d.profile,name:d.profile?.name||v.name,phone:d.profile?.phone||v.phone};save();navigation();message('Signed in as '+v.name);if(destination==='profile')profileView();else if(destination==='orders')orders();else if(destination==='checkout')checkoutForm();else shop();});
 }
 const pageNames={navShop:'Shop',navWishlist:'Wishlist',navCart:'Cart',orders:'Orders',navProfile:'Profile',navOffers:'Offers',navRepairs:'Repair Centre'};
 function selectNav(id){if(pageNames[id])track('view',user,{page:pageNames[id]});nav.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.id===id);if(b.id===id)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}
@@ -522,12 +445,12 @@ function repairBooking(){
  view.innerHTML=`<section class="card"><h2>Book a repair</h2><form id="repairForm"><label>Item / model<input name="item" maxlength="120" required minlength="2" placeholder="e.g. HP Pavilion laptop"></label><label>Describe the problem<textarea name="problem" minlength="10" maxlength="2000" required placeholder="What stopped working? When did it start?"></textarea></label><label>Upload item photo<input id="repairPhoto" type="file" accept="image/jpeg,image/png,image/webp" required></label><img id="repairPhotoPreview" hidden alt="Repair item photo preview"><p id="repairPhotoStatus" role="status"></p><button id="submitRepair">Submit repair request</button> <button id="cancelRepair" type="button" class="secondary">Back</button></form></section>`;
  let photo='',reading=false;document.querySelector('#repairPhoto').onchange=async e=>{photo='';const file=e.target.files[0];document.querySelector('#repairPhotoPreview').hidden=true;if(!file)return;reading=true;document.querySelector('#submitRepair').disabled=true;try{photo=await compressPhoto(file);const img=document.querySelector('#repairPhotoPreview');img.src=photo;img.hidden=false;document.querySelector('#repairPhotoStatus').textContent='Photo ready.';}catch(err){message(err.message);}finally{reading=false;document.querySelector('#submitRepair').disabled=false;}};
  document.querySelector('#cancelRepair').onclick=repairCentre;
- document.querySelector('#repairForm').onsubmit=action(e=>{if(reading)throw Error('Wait for the photo.');reloadLocal();const r=createRepair({...Object.fromEntries(new FormData(e.target)),photo},user.email);state.repairs??=[];state.repairs.unshift(r);save();track('repair_booked',user,{item:r.item,order_id:r.id});repairCentre();message('Repair request submitted. Your tracking ID: '+r.id);});
+ document.querySelector('#repairForm').onsubmit=action(async e=>{if(reading)throw Error('Wait for the photo.');const r=await api('/repairs','POST',{...Object.fromEntries(new FormData(e.target)),photo});track('repair_booked',user,{item:r.item,order_id:r.id});repairCentre();message('Repair request submitted. Your tracking ID: '+r.id);});
 }
 function repairUpdate(id){
  reloadLocal();if(user?.role!=='admin')throw Error('Owner access required.');const r=state.repairs?.find(r=>r.id===id);if(!r)throw Error('Repair not found.');
  view.innerHTML=`<section class="card"><h2>Update repair</h2><p>${esc(r.id)} · ${esc(r.item)}</p><p>${esc(r.problem)}</p><form id="repairUpdateForm"><label>Repair status<select name="status">${repairStatuses.map(s=>`<option ${s===r.status?'selected':''}>${s}</option>`).join('')}</select></label><label>Repair price (₹)<input name="price" type="number" min="0" max="1000000" step="0.01" value="${r.price_paise===null?'':r.price_paise/100}" placeholder="Leave blank until assessed"></label><label>Message to customer<textarea name="message" maxlength="1000" placeholder="Repair progress or collection instructions"></textarea></label><p class="muted">Ready for pickup automatically adds an in-app collection message. No money is charged here.</p><button>Save and notify customer in app</button> <button id="cancelRepairUpdate" type="button" class="secondary">Back</button></form></section>`;
- document.querySelector('#cancelRepairUpdate').onclick=repairCentre;document.querySelector('#repairUpdateForm').onsubmit=action(e=>{const f=Object.fromEntries(new FormData(e.target));reloadLocal();const i=state.repairs.findIndex(x=>x.id===id);state.repairs[i]=updateRepair(state.repairs[i],f,user.role);save();repairCentre();message('Repair updated. The customer can see the status, price and messages in Repair Centre.');});
+ document.querySelector('#cancelRepairUpdate').onclick=repairCentre;document.querySelector('#repairUpdateForm').onsubmit=action(async e=>{const f=Object.fromEntries(new FormData(e.target));await api('/repairs/'+id,'PUT',f);repairCentre();message('Repair updated. The customer can see the status, price and messages in Repair Centre.');});
 }
 function placeSearch(host,onSelect){
  host.innerHTML='<label>Area / city / landmark<input class="place-query" placeholder="e.g. Mansarovar, Jaipur" maxlength="200"></label><button type="button" class="secondary place-find">Find area</button><p class="muted">Search sends this area name to Photon / OpenStreetMap. Select the correct result; a place pin is approximate.</p><div class="place-results" role="status"></div>';
@@ -545,7 +468,7 @@ function categoryManager(){
  view.innerHTML=`<section class="card"><h2>Manage categories</h2><p>Create a category, then add products to it. Existing products can be moved using Edit product.</p><form id="categoryForm"><label>New category name<input name="name" required minlength="2" maxlength="40" placeholder="e.g. Monitors"></label><label>Category icon<select name="icon">${['box','laptop','camera','headphones','speaker','mic','charger'].map(n=>`<option value="${n}">${n}</option>`).join('')}</select></label><button>Create category</button><button id="categoryBack" type="button" class="secondary">Back to products</button></form></section><section class="grid">${categories.map(c=>`<article class="card"><span class="category-icon">${categoryIcon(c)}</span><h3>${esc(categoryLabels[c])}</h3><p>${state.products.filter(p=>p.active&&p.category===c).length} items</p><button data-category-item="${esc(c)}">Add item to ${esc(categoryLabels[c])}</button></article>`).join('')}</section>`;
  document.querySelector('#categoryBack').onclick=action(shop);
  document.querySelectorAll('[data-category-item]').forEach(b=>b.onclick=()=>productForm({category:b.dataset.categoryItem}));
- document.querySelector('#categoryForm').onsubmit=action(e=>{reloadLocal();refreshCategories();const f=Object.fromEntries(new FormData(e.target));const name=String(f.name||'').trim().replace(/\s+/g,' ');if(name.length<2||name.length>40)throw Error('Enter a category name from 2 to 40 characters.');if(categories.some(c=>categoryLabels[c].toLocaleLowerCase()===name.toLocaleLowerCase())||categories.some(c=>c.toLocaleLowerCase()===name.toLocaleLowerCase()))throw Error('This category already exists.');const id='CAT-'+Array.from(crypto.getRandomValues(new Uint8Array(8)),n=>n.toString(16).padStart(2,'0')).join('');state.customCategories??=[];state.customCategories.push({id,name,icon:['box','laptop','camera','headphones','speaker','mic','charger'].includes(f.icon)?f.icon:'box'});save();categoryManager();message('Category created. Choose Add item to '+name+' to add its products.');});
+ document.querySelector('#categoryForm').onsubmit=action(async e=>{reloadLocal();refreshCategories();const f=Object.fromEntries(new FormData(e.target));const name=String(f.name||'').trim().replace(/\s+/g,' ');if(name.length<2||name.length>40)throw Error('Enter a category name from 2 to 40 characters.');if(categories.some(c=>categoryLabels[c].toLocaleLowerCase()===name.toLocaleLowerCase())||categories.some(c=>c.toLocaleLowerCase()===name.toLocaleLowerCase()))throw Error('This category already exists.');const id='CAT-'+Array.from(crypto.getRandomValues(new Uint8Array(8)),n=>n.toString(16).padStart(2,'0')).join('');await api('/admin/categories','POST',{name,icon:f.icon});categoryManager();message('Category created. Choose Add item to '+name+' to add its products.');});
 }
 
 function profileView(){

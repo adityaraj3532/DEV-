@@ -10,6 +10,10 @@ services:
       mountPath: /data
       sizeGB: 1
     envVars:
+      - key: OWNER_EMAILS
+        sync: false
+      - key: DELIVERY_EMAILS
+        sync: false
       - key: ADMIN_KEY
         generateValue: true
       - key: SMTP_HOST

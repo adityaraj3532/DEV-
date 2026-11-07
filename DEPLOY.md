@@ -43,9 +43,16 @@ or `npm run android:open` to build/sign a release in Android Studio. `API_URL` m
 
 ## What is shared between website and app
 
-| Shared through the server | Still stored on each device |
-|---|---|
-| Customer sign-in (email OTP) and sessions | Product catalogue edits, orders, cart, wishlist, reviews, repairs, offers |
-| Activity feed and customer list in the owner **Activity** panel | |
+Everything is stored on the server (`DATA_DIR/shop.json`), so the website and the app show the same shop:
+products and categories, orders and delivery, returns, reviews, offers and events, repairs, and each signed-in
+person's cart, wishlist, saved addresses and profile. Only a guest's cart/wishlist stays on the device until they sign in.
 
-Orders placed in the app are not yet visible in the website's owner portal (and vice-versa); moving shop data to the server is the next step.
+Set who runs the shop before going live (hosting dashboard or `frontend/.env`):
+
+```
+OWNER_EMAILS=you@gmail.com
+DELIVERY_EMAILS=driver1@gmail.com,driver2@gmail.com
+```
+
+Owners and delivery partners sign in with the same email code as customers at `/?portal=admin` and `/?portal=delivery`.
+Anyone else who signs in is a customer.

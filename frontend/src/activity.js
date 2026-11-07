@@ -42,7 +42,7 @@ export function customersFromEvents(events){
 export const adminKey={get:()=>safe(()=>sessionStorage.getItem(ADMIN_KEY)||'',''),set:k=>safe(()=>k?sessionStorage.setItem(ADMIN_KEY,k):sessionStorage.removeItem(ADMIN_KEY))};
 
 export async function adminFetch(path){
- const r=await fetch(API+'/api/admin/'+path,{headers:{'x-admin-key':adminKey.get()}});
+ const r=await fetch(API+'/api/admin/'+path,{headers:{'x-admin-key':adminKey.get(),...(storedCustomer()?.token?{Authorization:'Bearer '+storedCustomer().token}:{})}});
  if(r.status===401)throw Object.assign(Error('Admin key required'),{code:401});
  if(!r.ok)throw Error('Backend error '+r.status);
  return r.json();
@@ -60,5 +60,5 @@ async function authCall(path,body,token){
 export const requestOtp=profile=>authCall('request-otp',profile);
 export async function verifyOtp(email,code){const {token,customer}=await authCall('verify-otp',{email,code});const c={...customer,token};storeCustomer(c);return c;}
 /** Returns the signed-in customer, or null if the server says the session ended. Keeps the session when offline. */
-export async function checkSession(){const c=storedCustomer();if(!c?.token)return null;try{await authCall('me',null,c.token);return c;}catch(e){if(e.offline)return c;storeCustomer(null);return null;}}
+export async function checkSession(){const c=storedCustomer();if(!c?.token)return null;try{const me=await authCall('me',null,c.token);const u={...c,...me,token:c.token};storeCustomer(u);return u;}catch(e){if(e.offline)return c;storeCustomer(null);return null;}}
 export async function signOut(){const c=storedCustomer();storeCustomer(null);if(c?.token)await authCall('logout',{},c.token).catch(()=>{});}

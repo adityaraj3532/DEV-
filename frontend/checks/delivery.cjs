@@ -1,9 +1,10 @@
-const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync('src/local-app.js','utf8'),apiCode=source.slice(source.indexOf('async function api('),source.indexOf('\nfunction action('));
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),assert=require('node:assert/strict');
+// The delivery rules run on the server (server/shop.mjs); this check drives it directly.
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'shop-delivery-'));process.on('exit',()=>fs.rmSync(dir,{recursive:true,force:true}));
 const owner={email:'owner@demo.com',role:'admin'},driver={email:'delivery@demo.com',role:'delivery'};
-const ctx={user:owner,state:{products:[{id:1,name:'Test laptop',price_paise:100000,stock:10,active:1}],orders:[]},save(){},sessionStorage:{setItem(){},removeItem(){}}};vm.createContext(ctx);
+const ctx={user:owner,state:{products:[{id:1,name:'Test laptop',price_paise:100000,stock:10,active:1}],orders:[]},save(){},sessionStorage:{setItem(){},removeItem(){}}};
 (async()=>{
- Object.assign(ctx,await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('src/delivery.js','utf8')).toString('base64')));vm.runInContext(apiCode,ctx);
+ fs.writeFileSync(path.join(dir,'shop.json'),JSON.stringify(ctx.state));const {createShop}=await import('../server/shop.mjs');Object.assign(ctx,await import('../src/delivery.js'));const shop=createShop(dir,{partners:['delivery@demo.com']});ctx.state=shop.state();ctx.api=async(p,m='GET',b)=>shop.handle(ctx.user,p,m,b);
  const order=await ctx.api('/orders','POST',{name:'Test',phone:'9876543210',address:'Test customer address, Jaipur',items:[{product_id:1,quantity:1}]});
  const request={assigned_to:'delivery@demo.com',pickup_address:'Test pickup address, Jaipur',pickup:{lat:26.92,lng:75.82},dropoff:{lat:26.90,lng:75.80}};
  await assert.rejects(()=>ctx.api('/admin/delivery-requests/'+order.id,'POST',request),/Confirm/);
