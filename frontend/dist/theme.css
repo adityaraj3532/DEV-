@@ -39,3 +39,18 @@ html{background:var(--bg);scroll-behavior:smooth}body{background:var(--bg);color
 .category-tabs button[data-category].selected .category-icon .ui-icon{color:#172411;opacity:1;stroke-width:1.9}
 .category-tabs button[data-category].selected:hover .category-icon{background:#c7ff97}
 @media(max-width:600px){.category-tabs[aria-label="Product categories"]{grid-template-columns:repeat(auto-fit,minmax(46px,1fr));row-gap:16px}}
+
+/* Owner activity panel */
+.admin-panel .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.admin-source{margin:4px 0 16px}
+.admin-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.admin-stats .card{margin:0;padding:14px}.admin-stats small{display:block;opacity:.7}.admin-stats strong{font-size:22px}
+.admin-table-wrap{overflow-x:auto}
+.admin-table{width:100%;min-width:760px;border-collapse:collapse;font-size:14px}
+.admin-table th,.admin-table td{text-align:left;padding:10px 8px;border-bottom:1px solid rgba(127,127,127,.25);vertical-align:top}
+.admin-table button{padding:6px 10px}
+.admin-feed{list-style:none;margin:0;padding:0;max-height:520px;overflow:auto}
+.admin-feed li{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:9px 0;border-bottom:1px solid rgba(127,127,127,.2);font-size:14px}
+.admin-feed time{opacity:.65;min-width:150px}
+.admin-badge{border-radius:999px;padding:2px 9px;font-size:12px;background:rgba(127,127,127,.2)}
+.admin-login,.admin-order_placed{background:#c9f26b;color:#13200a}.admin-logout{background:rgba(255,120,120,.25)}

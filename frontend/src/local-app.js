@@ -5,6 +5,8 @@ import {icon,productIcons} from './icons.js';
 import {canDrive,point,sendRequest,respondRequest,withdrawRequest,shareLocation,distanceKm} from './delivery.js';
 import {createDeliveryMap} from './delivery-map.js';
 import {promotionStatus, validatePromotion} from './promotions.js';
+import {track,storedCustomer,storeCustomer,validateCustomer} from './activity.js';
+import {adminPanel} from './admin-panel.js';
 'use strict';
 let user=null, products=[], cart={}, editing=null;
 const view=document.querySelector('#view'), nav=document.querySelector('#navigation');
@@ -45,8 +47,8 @@ function savedData(){state.customers??={};return state.customers[customerKey()]?
 function restoreCart(){cart={...savedData().cart};}
 function saveCart(){savedData().cart={...cart};save();navigation();}
 function mergeGuest(){const guest=state.customers?.guest;if(!guest||!user)return;const target=savedData();target.wishlist=[...new Set([...target.wishlist,...guest.wishlist])];target.later=[...new Set([...target.later,...guest.later])];for(const [id,q] of Object.entries(guest.cart)){const p=state.products.find(p=>p.id===+id&&p.active);if(p)target.cart[id]=Math.min(p.stock,(target.cart[id]||0)+q);}delete state.customers.guest;save();}
-function toggleWish(id){const data=savedData(),has=data.wishlist.includes(+id);data.wishlist=has?data.wishlist.filter(x=>x!==+id):[...data.wishlist,+id];save();navigation();return !has;}
-function addItem(id){const p=state.products.find(p=>p.id===+id&&p.active);if(!p||p.stock<1)throw Error('This item is currently unavailable.');if((cart[id]||0)>=p.stock)throw Error('Stock limit reached');cart[id]=(cart[id]||0)+1;saveCart();message(p.name+' added to cart');cartFeedback(+id);}
+function toggleWish(id){const data=savedData(),has=data.wishlist.includes(+id);data.wishlist=has?data.wishlist.filter(x=>x!==+id):[...data.wishlist,+id];save();track(has?'wishlist_remove':'wishlist_add',user,{product:state.products.find(p=>p.id===+id)?.name||String(id)});navigation();return !has;}
+function addItem(id){const p=state.products.find(p=>p.id===+id&&p.active);if(!p||p.stock<1)throw Error('This item is currently unavailable.');if((cart[id]||0)>=p.stock)throw Error('Stock limit reached');cart[id]=(cart[id]||0)+1;saveCart();track('add_to_cart',user,{product:p.name,product_id:p.id});message(p.name+' added to cart');cartFeedback(+id);}
 function productArt(p){return p.image_url||({Laptop:'/assets/laptop.svg',Headphone:'/assets/headphones.svg'})[p.category]||'';}
 function itemVisual(p){return productArt(p)?`<img src="${esc(productArt(p))}" alt="${esc(p.name)}">`:`<span aria-hidden="true">${icons[p.category]||icon('box')}</span>`;}
 
@@ -56,7 +58,7 @@ function ratingSummary(id){const r=(state.reviews||[]).filter(r=>r.product_id===
 function canReturn(order,item){return order.status==='Delivered'&&item.returnable&&order.delivered_at&&Date.now()/1000<=order.delivered_at+(item.return_days||7)*86400;}
 async function api(path,method='GET',body){
 if(typeof reloadLocal==='function')reloadLocal();
-if(path==='/auth/me'){user={email:deliveryPath?'delivery@demo.com':adminPath?'owner@demo.com':'customer@demo.com',role:deliveryPath?'delivery':adminPath?'admin':'customer'};return user;}
+if(path==='/auth/me'){if(!adminPath&&!deliveryPath){const c=storedCustomer();user=c?{...c,role:'customer'}:null;return user;}user={email:deliveryPath?'delivery@demo.com':adminPath?'owner@demo.com':'customer@demo.com',role:deliveryPath?'delivery':adminPath?'admin':'customer'};return user;}
 if(path==='/auth/request-otp'){sessionStorage.setItem('demoEmail',body.email);return {message:'Demo code: 123456. No email is sent in this preview.'};}
 if(path==='/auth/verify-otp'){if(body.code!=='123456')throw Error('Use the demo OTP: 123456');const u={email:body.email,role:body.email.toLowerCase()==='owner@demo.com'?'admin':body.email.toLowerCase()==='delivery@demo.com'?'delivery':'customer'};sessionStorage.setItem('demoUser',JSON.stringify(u));return u;}
 if(path==='/auth/logout'){sessionStorage.removeItem('demoUser');return {};}
@@ -138,22 +140,23 @@ function action(fn){return async e=>{e?.preventDefault();const button=e?.submitt
 function navigation(){
  const selectedNav=nav.querySelector('[aria-current="page"]')?.id||'navShop';
  const isAdmin=adminPath&&user?.role==='admin',isDelivery=deliveryPath&&user?.role==='delivery',qty=Object.values(cart).reduce((a,b)=>a+b,0);
- nav.innerHTML=isDelivery?'<button id="orders" class="secondary">Requests & deliveries</button><button id="navProfile" class="secondary">Profile</button><button id="logout" class="secondary">Re-enter portal</button>':isAdmin?`<button id="navShop" class="secondary">Products</button><button id="orders" class="secondary">Orders</button><button id="navStock" class="secondary">Stock</button><button id="logout" class="secondary">Re-enter portal</button>`:`<button id="navShop" class="secondary">Shop</button><button id="navWishlist" class="secondary">Wishlist (${savedData().wishlist.length})</button><button id="navCart" class="secondary">Cart (${qty})</button><button id="orders" class="secondary">My Orders</button><button id="navProfile" class="secondary">Profile</button>${user?'<button id="logout" class="secondary">Re-enter portal</button>':'<button id="login">Log in</button>'}`;
+ nav.innerHTML=isDelivery?'<button id="orders" class="secondary">Requests & deliveries</button><button id="navProfile" class="secondary">Profile</button><button id="logout" class="secondary">Re-enter portal</button>':isAdmin?`<button id="navShop" class="secondary">Products</button><button id="orders" class="secondary">Orders</button><button id="navStock" class="secondary">Stock</button><button id="navActivity" class="secondary">Activity</button><button id="logout" class="secondary">Re-enter portal</button>`:`<button id="navShop" class="secondary">Shop</button><button id="navWishlist" class="secondary">Wishlist (${savedData().wishlist.length})</button><button id="navCart" class="secondary">Cart (${qty})</button><button id="orders" class="secondary">My Orders</button><button id="navProfile" class="secondary">Profile</button>${user?'<button id="logout" class="secondary">Re-enter portal</button>':'<button id="login">Log in</button>'}`;
  if(!isDelivery){nav.insertAdjacentHTML('beforeend',`<button id="navOffers" class="secondary">${isAdmin?'Manage offers':'Offers & events'}</button>`);document.querySelector('#navOffers').onclick=()=>offersView();}
  if(!isDelivery){nav.insertAdjacentHTML('beforeend','<button id="navRepairs" class="secondary">Repair Centre</button>');document.querySelector('#navRepairs').onclick=repairCentre;}
  if(document.querySelector('#navShop'))document.querySelector('#navShop').onclick=action(shop);
  if(document.querySelector('#navProfile'))document.querySelector('#navProfile').onclick=()=>profileView();
  document.querySelector('#orders').onclick=action(async()=>{if(!user){message('Log in to see your orders.');login('orders');return;}await orders();});
- if(isAdmin)document.querySelector('#navStock').onclick=stockView;
+ if(isAdmin){document.querySelector('#navStock').onclick=stockView;document.querySelector('#navActivity').onclick=action(async()=>{selectNav('navActivity');await adminPanel(view);});}
  else if(!isDelivery){document.querySelector('#navWishlist').onclick=()=>collectionView('wishlist');document.querySelector('#navCart').onclick=action(async()=>{products=await api('/products');cartView();});}
- const navIcons={navShop:'shop',navWishlist:'heart',navCart:'bag',orders:'box',navProfile:'user',navStock:'box',navOffers:'gift',navRepairs:'box',logout:'user'};nav.querySelectorAll('button').forEach(b=>{const text=b.textContent.replace('My Orders','Orders');b.innerHTML=icon(navIcons[b.id]||'shop')+'<span>'+esc(text)+'</span>';});
+ const navIcons={navShop:'shop',navWishlist:'heart',navCart:'bag',orders:'box',navProfile:'user',navStock:'box',navOffers:'gift',navRepairs:'box',navActivity:'user',logout:'user'};nav.querySelectorAll('button').forEach(b=>{const text=b.textContent.replace('My Orders','Orders');b.innerHTML=icon(navIcons[b.id]||'shop')+'<span>'+esc(text)+'</span>';});
  document.querySelector('#headerOffers').onclick=()=>offersView();
- if(user)document.querySelector('#logout').onclick=action(async()=>{await api('/auth/logout','POST');user=null;restoreCart();navigation();await shop();});
+ if(user)document.querySelector('#logout').onclick=action(async()=>{track('logout',user);if(user?.role==='customer')storeCustomer(null);await api('/auth/logout','POST');user=null;restoreCart();navigation();await shop();});
  else document.querySelector('#login').onclick=()=>login();
  selectNav(selectedNav);
 }
 
 function login(destination='shop'){
+ if(!adminPath&&!deliveryPath){customerSignIn(destination);return;}
  user={email:deliveryPath?'delivery@demo.com':adminPath?'owner@demo.com':'customer@demo.com',role:deliveryPath?'delivery':adminPath?'admin':'customer'};
  restoreCart();navigation();
  if(destination==='profile')profileView();else if(destination==='orders'||deliveryPath)orders();else if(destination==='checkout')checkoutForm();else shop();
@@ -258,7 +261,7 @@ function checkoutForm(draft={}){
  document.querySelector('#back').onclick=cartView;
  document.querySelector('#checkoutForm').onsubmit=action(async e=>{const f=Object.fromEntries(new FormData(e.target));const body={name:f.name,phone:f.phone,address:f.address,payment_method:f.payment,destination:point({lat:f.destination_lat,lng:f.destination_lng},true),items:Object.entries(cart).filter(([,q])=>q>0).map(([id,quantity])=>({product_id:+id,quantity}))};if(body.payment_method==='Online demo'){paymentPreview(body);return;}await placeCheckout(body);});
 }
-async function placeCheckout(body){const result=await api('/orders','POST',body);cart={};saveCart();message('Order '+result.id+' submitted. Waiting for the owner to confirm. Total: '+money(result.total_paise));await orders();}
+async function placeCheckout(body){const result=await api('/orders','POST',body);track('order_placed',user,{order_id:String(result.id),total_paise:result.total_paise});cart={};saveCart();message('Order '+result.id+' submitted. Waiting for the owner to confirm. Total: '+money(result.total_paise));await orders();}
 function paymentPreview(body){
  let subtotal=0;for(const i of body.items){const p=state.products.find(p=>p.id===i.product_id&&p.active);if(!p||p.stock<i.quantity)throw Error('Please refresh your cart: stock has changed.');subtotal+=p.price_paise*i.quantity;}const total=subtotal+(subtotal<100000?4900:0);
  view.innerHTML=`<section class="card payment-preview"><span class="status-pill">DEMO PAYMENT · NO REAL TRANSACTION</span><h2>Online checkout preview</h2><p class="price">${money(total)}</p><p>Choose a method to preview the payment result. This is not connected to a payment gateway.</p><label>Payment method<select id="demoPaymentMethod"><option>UPI</option><option>Debit / credit card</option><option>Net banking</option></select></label><p class="notice">No card number, bank details, OTP, or UPI PIN is required.</p><div class="row"><button id="demoPay">Simulate successful payment</button><button id="demoFail" class="secondary">Simulate failed payment</button><button id="cancelPay" class="secondary">Cancel</button></div></section>`;
@@ -473,7 +476,14 @@ function updateTracking(){
 }
 window.addEventListener('storage',e=>{if(e.key!=='electroshop-direct-preview-v1')return;try{reloadLocal();if(trackingOrderId)updateTracking();else if(document.querySelector('#repairCentre'))repairCentre();else if(document.querySelector('#orderList'))orders().catch(err=>message(err.message));}catch(err){message(err.message);}});
 
-function selectNav(id){nav.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.id===id);if(b.id===id)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}
+function customerSignIn(destination){
+ const c=storedCustomer()||{};
+ view.innerHTML=`<section class="card"><h2>Sign in</h2><p class="muted">Sign in to save your cart, place orders and track repairs.</p><form id="customerSignIn"><label>Full name<input name="name" required minlength="2" maxlength="80" autocomplete="name" value="${esc(c.name)}"></label><label>Email<input name="email" type="email" required maxlength="254" autocomplete="email" value="${esc(c.email)}"></label><label>Phone (optional)<input name="phone" inputmode="tel" maxlength="16" autocomplete="tel" value="${esc(c.phone)}"></label><button>Sign in</button> <button id="signInBack" type="button" class="secondary">Keep browsing</button></form></section>`;
+ document.querySelector('#signInBack').onclick=action(shop);
+ document.querySelector('#customerSignIn').onsubmit=action(e=>{const c=validateCustomer(Object.fromEntries(new FormData(e.target)));storeCustomer(c);user={...c,role:'customer'};mergeGuest();restoreCart();navigation();track('login',user);message('Signed in as '+c.name);if(destination==='profile')profileView();else if(destination==='orders')orders();else if(destination==='checkout')checkoutForm();else shop();});
+}
+const pageNames={navShop:'Shop',navWishlist:'Wishlist',navCart:'Cart',orders:'Orders',navProfile:'Profile',navOffers:'Offers',navRepairs:'Repair Centre'};
+function selectNav(id){if(pageNames[id])track('view',user,{page:pageNames[id]});nav.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.id===id);if(b.id===id)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}
 
 function cartFeedback(id){
  document.querySelectorAll('[data-add]').forEach(b=>{if(+b.dataset.add===id){b.innerHTML='<span class="cart-quantity">'+cart[id]+'</span>';b.classList.add('is-added');b.setAttribute('aria-label','Add another '+(state.products.find(p=>p.id===id)?.name||'item')+' to cart');b.title=cart[id]+' in cart · add one more';}});
@@ -497,7 +507,7 @@ function repairBooking(){
  view.innerHTML=`<section class="card"><h2>Book a repair</h2><form id="repairForm"><label>Item / model<input name="item" maxlength="120" required minlength="2" placeholder="e.g. HP Pavilion laptop"></label><label>Describe the problem<textarea name="problem" minlength="10" maxlength="2000" required placeholder="What stopped working? When did it start?"></textarea></label><label>Upload item photo<input id="repairPhoto" type="file" accept="image/jpeg,image/png,image/webp" required></label><img id="repairPhotoPreview" hidden alt="Repair item photo preview"><p id="repairPhotoStatus" role="status"></p><button id="submitRepair">Submit repair request</button> <button id="cancelRepair" type="button" class="secondary">Back</button></form></section>`;
  let photo='',reading=false;document.querySelector('#repairPhoto').onchange=async e=>{photo='';const file=e.target.files[0];document.querySelector('#repairPhotoPreview').hidden=true;if(!file)return;reading=true;document.querySelector('#submitRepair').disabled=true;try{photo=await compressPhoto(file);const img=document.querySelector('#repairPhotoPreview');img.src=photo;img.hidden=false;document.querySelector('#repairPhotoStatus').textContent='Photo ready.';}catch(err){message(err.message);}finally{reading=false;document.querySelector('#submitRepair').disabled=false;}};
  document.querySelector('#cancelRepair').onclick=repairCentre;
- document.querySelector('#repairForm').onsubmit=action(e=>{if(reading)throw Error('Wait for the photo.');reloadLocal();const r=createRepair({...Object.fromEntries(new FormData(e.target)),photo},user.email);state.repairs??=[];state.repairs.unshift(r);save();repairCentre();message('Repair request submitted. Your tracking ID: '+r.id);});
+ document.querySelector('#repairForm').onsubmit=action(e=>{if(reading)throw Error('Wait for the photo.');reloadLocal();const r=createRepair({...Object.fromEntries(new FormData(e.target)),photo},user.email);state.repairs??=[];state.repairs.unshift(r);save();track('repair_booked',user,{item:r.item,order_id:r.id});repairCentre();message('Repair request submitted. Your tracking ID: '+r.id);});
 }
 function repairUpdate(id){
  reloadLocal();if(user?.role!=='admin')throw Error('Owner access required.');const r=state.repairs?.find(r=>r.id===id);if(!r)throw Error('Repair not found.');

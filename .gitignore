@@ -58,3 +58,6 @@ __pycache__/
 !frontend/dist/theme.css
 !frontend/dist/assets/
 !frontend/dist/assets/*.svg
+
+# Local backend data (customer info, activity log, admin key)
+frontend/data/
