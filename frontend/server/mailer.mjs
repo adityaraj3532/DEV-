@@ -5,6 +5,7 @@ import net from 'node:net';
 import tls from 'node:tls';
 
 export function mailerFromEnv(env=process.env,log=console.log){
+ if(env.SMTP_HOST&&env.SMTP_USER&&!env.SMTP_PASS){log('WARNING: SMTP_PASS is empty, so emails are NOT sent. Sign-in codes will print here until you add it to frontend/.env.');env={...env,SMTP_HOST:''};}
  if(!env.SMTP_HOST)return {mode:'console',async send({to,subject,text}){log(`\n[DEV EMAIL] To: ${to}\nSubject: ${subject}\n${text}\n`);}};
  const cfg={host:env.SMTP_HOST,port:+env.SMTP_PORT||587,user:env.SMTP_USER||'',pass:env.SMTP_PASS||'',from:env.SMTP_FROM||env.SMTP_USER};
  if(!cfg.from)throw Error('Set SMTP_FROM (or SMTP_USER) to the sender address.');
