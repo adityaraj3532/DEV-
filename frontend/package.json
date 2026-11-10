@@ -12,7 +12,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "check": "node --check src/entry.js && node --check src/local-app.js && node --check src/delivery.js && node --check src/delivery-map.js && node --check src/activity.js && node --check src/admin-panel.js && node --check server/store.mjs && node --check serve.mjs && node --check server/auth.mjs && node --check server/mailer.mjs && node --check server/shop.mjs && node --check src/checkout.js && node --check src/pricing.js && node --check src/product-details.js",
+    "check": "node --check src/entry.js && node --check src/local-app.js && node --check src/delivery.js && node --check src/delivery-map.js && node --check src/activity.js && node --check src/admin-panel.js && node --check server/store.mjs && node --check serve.mjs && node --check server/auth.mjs && node --check server/mailer.mjs && node --check server/shop.mjs && node --check src/checkout.js && node --check src/pricing.js && node --check src/product-details.js && node --check src/motion.js",
     "test": "node checks/local-confirmation.cjs && node checks/local-returns-reviews.cjs && node checks/promotions.mjs && node checks/delivery.cjs && node checks/receipt.mjs && node checks/repairs.mjs && node checks/laptop-catalog.mjs && node checks/activity-store.mjs && node checks/otp-auth.mjs && node checks/shop-server.mjs && node checks/checkout.mjs && node checks/pricing.mjs && node checks/product-details.mjs",
     "test:email": "node checks/email-auth.mjs",
     "start": "node serve.mjs",

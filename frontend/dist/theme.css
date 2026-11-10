@@ -167,3 +167,98 @@ html{background:var(--bg);scroll-behavior:smooth}body{background:var(--bg);color
  .co-grid,.co-grid-3,.co-payments{grid-template-columns:1fr}
  .co-section{padding:16px}.co-cta{min-width:0;flex:1}.co-place{padding:12px 14px}
 }
+
+/* Modern light theme + motion layer (loaded after theme.css and checkout.css). */
+:root{color-scheme:light;--bg:#f6f7fb;--surface:#ffffff;--raised:#f1f3f9;--line:#e4e7f0;--ink:#0f172a;--muted:#64748b;
+  --accent:#4f46e5;--accent-2:#7c3aed;--accent-3:#06b6d4;--accent-ink:#ffffff;
+  --shadow:0 1px 2px #0f172a0d,0 8px 24px -12px #0f172a26;--shadow-lg:0 2px 4px #0f172a0a,0 24px 48px -20px #4f46e540}
+html{background:var(--bg)}
+body{color:var(--ink);background:
+  radial-gradient(900px 500px at 0% -10%,#e0e7ff 0%,transparent 60%),
+  radial-gradient(700px 450px at 100% 0%,#f3e8ff 0%,transparent 55%),
+  radial-gradient(700px 500px at 50% 110%,#cffafe 0%,transparent 60%),
+  var(--bg);background-attachment:fixed;overflow-x:hidden}
+h1,h2,h3,h4,strong{color:var(--ink)}
+.muted,small,p{color:var(--muted)}
+.card strong,.card h2,.card h3{color:var(--ink)}
+a{color:var(--accent)}
+
+#scrollProgress{position:fixed;top:0;left:0;height:3px;width:100%;transform-origin:0 50%;transform:scaleX(var(--p,0));
+  background:linear-gradient(90deg,var(--accent),var(--accent-2),var(--accent-3));z-index:2000}
+
+header .brand,header h1{color:var(--ink)}
+header h1{font-weight:700;background:linear-gradient(90deg,var(--ink) 40%,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand-mark{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 6px 18px -6px #4f46e5aa}
+.notification-button{color:var(--ink);border-color:var(--line);background:#fff}
+
+/* Buttons */
+button{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;border-radius:12px;position:relative;overflow:hidden;
+  box-shadow:0 6px 16px -8px #4f46e5aa;transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s,filter .2s}
+button:hover{background:linear-gradient(135deg,#4338ca,#6d28d9);transform:translateY(-2px);box-shadow:0 12px 24px -10px #4f46e5cc}
+button::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,#ffffff40 50%,transparent 70%);transform:translateX(-120%);transition:transform .6s;pointer-events:none}
+button:hover::after{transform:translateX(120%)}
+.secondary{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow)}
+.secondary:hover{background:#eef2ff;color:var(--accent);border-color:#c7d2fe}
+.danger{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;box-shadow:none}
+.danger:hover{background:#fee2e2}
+#navigation button,.notification-button,.icon-button,.text-button,.wish-button,.product-more{background:transparent;box-shadow:none;color:var(--muted)}
+#navigation button:hover,.notification-button:hover,.icon-button:hover,.text-button:hover{transform:translateY(-2px);background:transparent;box-shadow:none;color:var(--accent)}
+#navigation button::after,.notification-button::after,.icon-button::after,.text-button::after,.wish-button::after{display:none}
+
+/* Inputs */
+input,select,textarea{background:#fff!important;color:var(--ink)!important;border:1px solid var(--line)!important;transition:border-color .2s,box-shadow .2s}
+input::placeholder,textarea::placeholder{color:#94a3b8}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)!important;box-shadow:0 0 0 4px #4f46e51f;outline:none}
+
+/* Cards */
+.card,.notice,.summary-line{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
+  transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s,border-color .35s}
+.card:hover{box-shadow:var(--shadow-lg);border-color:#c7d2fe}
+.local-banner{background:linear-gradient(135deg,#eef2ff,#faf5ff)!important;border-color:#c7d2fe!important}
+
+/* Hero */
+.ad-banner{background:linear-gradient(120deg,#312e81 0%,#4f46e5 45%,#7c3aed 75%,#06b6d4 130%);border:0;box-shadow:0 30px 60px -30px #4f46e5aa}
+.ad-banner::before{content:"";position:absolute;width:420px;height:420px;right:-100px;top:-160px;border-radius:50%;
+  background:radial-gradient(circle,#ffffff40,transparent 65%);animation:float 9s ease-in-out infinite;pointer-events:none}
+.ad-banner h2,.ad-banner p{color:#fff}
+.ad-banner small{color:#c7d2fe}
+.ad-banner button{background:#fff;color:var(--accent)}
+.ad-banner button:hover{background:#eef2ff}
+@keyframes float{50%{transform:translate(-30px,30px) scale(1.08)}}
+
+/* Products */
+.product-card{transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+.product-card:hover{transform:translateY(-6px)}
+.product-image{background:linear-gradient(160deg,#ffffff,#eef2ff);border:1px solid var(--line);box-shadow:var(--shadow);transition:box-shadow .4s,border-color .4s}
+.product-card:hover .product-image{box-shadow:var(--shadow-lg);border-color:#c7d2fe}
+.product-image img{transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.product-card:hover .product-image img{transform:scale(1.07)}
+.product-tag{color:var(--accent)}
+.price{color:var(--ink)}
+.category-icon{background:#fff;border:1px solid var(--line);color:var(--accent);box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s}
+.category-icon:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+.status-pill,.policy-tag,.brand-tag{background:#eef2ff;color:var(--accent);border-color:#c7d2fe}
+
+/* Bottom / top navigation */
+#navigation{background:#ffffffe6!important;backdrop-filter:blur(16px);border-color:var(--line)!important;box-shadow:0 -6px 24px -12px #0f172a26}
+#navigation button.active{color:var(--accent)}
+body.scrolled #navigation{box-shadow:0 10px 30px -12px #0f172a33}
+
+/* Scroll reveal (only hidden once JS has marked elements) */
+.reveal{opacity:0;transform:translateY(28px) scale(.98);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1);transition-delay:var(--d,0ms)}
+.reveal.in{opacity:1;transform:none}
+#view{animation:viewIn .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes viewIn{from{opacity:0;transform:translateY(12px)}}
+
+::selection{background:#c7d2fe}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#c7d2fe;border-radius:10px}::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+}
+header,#navigation{color:var(--ink)}
+#message{background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe}
+#message:empty{display:none}
+.wish-button{background:#ffffffd9!important;color:var(--accent)!important;border:1px solid var(--line);backdrop-filter:blur(6px)}
