@@ -10,5 +10,5 @@ await copyFile('src/index.html','dist/index.html');
 
 await copyFile('node_modules/leaflet/dist/leaflet.css','dist/leaflet.css');
 
-await writeFile('dist/theme.css',(await readFile('src/theme.css','utf8'))+'\n'+(await readFile('src/checkout.css','utf8'))+'\n'+(await readFile('src/motion.css','utf8')));
+await writeFile('dist/theme.css',(await readFile('src/theme.css','utf8'))+'\n'+(await readFile('src/checkout.css','utf8'))+'\n'+(await readFile('src/motion.css','utf8'))+'\n'+(await readFile('src/theme-dark.css','utf8')));
 await cp('src/assets','dist/assets',{recursive:true});
