@@ -41,3 +41,21 @@ Owner categories: open Owner portal → Products → Manage categories. Enter a 
 ## Android app
 
 An installable Android project is now available in `frontend/android`. See [ANDROID.md](ANDROID.md) for Windows / Android Studio setup, testing and APK instructions. Run `npm run setup`, `npm run android:sync`, then `npm run android:open` from the repository root. Native GPS uses Capacitor Geolocation; web browsers retain browser GPS. Android compilation/device QA is pending and local-only demo limitations remain.
+
+## Deploying the website (Render)
+
+The repo includes `render.yaml` and a `Dockerfile`. The Docker image serves the committed `frontend/dist`, so run `npm run build` and commit `frontend/dist` before pushing changes you want live.
+
+1. Push to GitHub `main`.
+2. On [render.com](https://render.com): **New → Blueprint**, pick this repository. It creates the `dev-computer` web service (Starter plan) with a 1 GB disk at `/data` for shop data, customers, sessions and the admin key.
+3. Fill the values Render asks for:
+   - `OWNER_EMAILS`: the owner's email (owner portal: `/?portal=admin`)
+   - `DELIVERY_EMAILS`: delivery partners' emails (`/?portal=delivery`), comma separated
+   - `SMTP_HOST` `smtp.gmail.com`, `SMTP_USER` your Gmail, `SMTP_PASS` a Gmail **app password**, `SMTP_FROM` e.g. `Dev Computer <you@gmail.com>`
+   - `ADMIN_KEY` is generated automatically. Never set `DEV_OTP` on the hosted site.
+4. Deploy. Render gives an `https://dev-computer-xxxx.onrender.com` address; `/api/health` should return `{"ok":true}`. A custom domain can be added under **Settings → Custom Domains**.
+5. Pushes to `main` redeploy automatically.
+
+For the Android / Play Store build, set `API_URL` to that https address in `frontend/.env`, then run `npm run android:sync` so the app uses the same shop and accounts as the website.
+
+Still demo-only on the hosted site: online payments are simulated (no money is charged), and delivery requests and location updates are kept per browser rather than synced between devices.
