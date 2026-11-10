@@ -21,7 +21,7 @@ const paths={
  truck:'<path d="M1 4h13v13H1Zm13 5h5l4 5v3h-9"/><circle cx="5" cy="19" r="2"/><circle cx="18" cy="19" r="2"/>',
  pin:'<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
  check:'<path d="m4 12 5 5L20 6"/>',
- plus:'<path d="M12 4v16M4 12h16"/>',
+ plus:'<path d="M12 4v16M4 12h16"/>',minus:'<path d="M4 12h16"/>',
  navigation:'<path d="m21 3-6 18-4-8-8-4Z"/>',
  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
 };
