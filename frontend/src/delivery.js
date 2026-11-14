@@ -12,7 +12,7 @@ export function sendRequest(o,user,body,partners=['delivery@demo.com']){
  owner(user);if(o.status!=='Confirmed')throw Error('Confirm the order before sending a delivery request. Requests can only be replaced before shipping.');
  if(o.delivery_request&&['Pending','Accepted'].includes(o.delivery_request.status))throw Error('Withdraw the existing request before sending another one.');
  if(!partners.map(p=>p.toLowerCase()).includes(String(body.assigned_to||'').toLowerCase()))throw Error('Choose an available delivery partner.');body.assigned_to=String(body.assigned_to).toLowerCase();
- const pickup=point(body.pickup),dropoff=point(body.dropoff);
+ const pickup=point(body.pickup,true),dropoff=point(body.dropoff,true); // map pins are optional; addresses are enough
  const pickupAddress=String(body.pickup_address||'').trim();if(pickupAddress.length<5||pickupAddress.length>500)throw Error('Enter a pickup address in 5–500 characters.');
  if(!String(o.address||'').trim())throw Error('This order needs a delivery address before dispatch.');
  o.locations={pickup:{...pickup,label:pickupAddress},dropoff:{...dropoff,label:o.address}};

@@ -15,9 +15,9 @@ export function createDeliveryMap(element,{pickup,dropoff,driver,trail=[],onPick
  const map=L.map(element,{scrollWheelZoom:false}).setView([22.9,79.2],4),markers=L.layerGroup().addTo(map);
  const cleanup=addStreetLayer(map,element);
  let fitted=false;
- function update(points){markers.clearLayers();const bounds=[];for(const [name,p,color] of [['Pickup',points.pickup,'#4661a6'],['Delivery address',points.dropoff,'#087f70'],['Delivery partner (last reported)',points.driver,'#d75313']])if(p){const marker=L.circleMarker([p.lat,p.lng],{radius:9,color:'#fff',weight:3,fillColor:color,fillOpacity:1}).addTo(markers);marker.bindTooltip(name);bounds.push([p.lat,p.lng]);}
+ function update(points){markers.clearLayers();const bounds=[];for(const [name,p,color] of [['Pickup',points.pickup,'#4661a6'],['Delivery address',points.dropoff,'#087f70'],['Delivery partner (last reported)',points.driver,'#d75313']])if(p&&Number.isFinite(p.lat)&&Number.isFinite(p.lng)){const marker=L.circleMarker([p.lat,p.lng],{radius:9,color:'#fff',weight:3,fillColor:color,fillOpacity:1}).addTo(markers);marker.bindTooltip(name);bounds.push([p.lat,p.lng]);}
  const track=(points.trail||[]).map(p=>[p.lat,p.lng]);if(track.length>1)L.polyline(track,{color:'#d75313',weight:3}).addTo(markers);
- if(points.driver&&points.dropoff)L.polyline([[points.driver.lat,points.driver.lng],[points.dropoff.lat,points.dropoff.lng]],{color:'#65758b',dashArray:'6 8',weight:2}).addTo(markers);
+ if(Number.isFinite(points.driver?.lat)&&Number.isFinite(points.dropoff?.lat))L.polyline([[points.driver.lat,points.driver.lng],[points.dropoff.lat,points.dropoff.lng]],{color:'#65758b',dashArray:'6 8',weight:2}).addTo(markers);
  if(bounds.length&&!fitted){map.fitBounds(bounds,{padding:[35,35],maxZoom:15});fitted=true;}
  }
  if(onPick)map.on('click',e=>onPick({lat:+e.latlng.lat.toFixed(6),lng:+e.latlng.lng.toFixed(6)}));
