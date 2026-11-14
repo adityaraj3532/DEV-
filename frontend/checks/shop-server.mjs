@@ -27,7 +27,7 @@ try{
  assert.equal(shop.snapshot(asha).orders.length,1);
  assert.equal(shop.snapshot(ravi).orders.length,0,'customers only see their own orders');
  assert.equal(shop.snapshot(owner).orders.length,1,'owner sees every order');
- assert.deepEqual(shop.snapshot(owner).delivery_partners,['driver@shop.in']);
+ assert.deepEqual(shop.snapshot(owner).delivery_partners,[{email:'driver@shop.in',name:'driver'}]);
  assert.equal(shop.snapshot(asha).delivery_partners,undefined);
  assert.equal(shop.snapshot(driver).orders.length,0,'unconfirmed orders are hidden from delivery');
 

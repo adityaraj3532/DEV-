@@ -28,6 +28,9 @@ const ICONS=['box','laptop','camera','headphones','speaker','mic','charger'];
 const denied=(m,status=403)=>Object.assign(Error(m),{status});
 
 export function createShop(dir,{partners=[]}={}){
+ // partners: [{email,name}] (plain email strings are accepted too)
+ partners=partners.map(p=>typeof p==='string'?{email:p.toLowerCase(),name:p.split('@')[0]}:{email:p.email.toLowerCase(),name:p.name||p.email.split('@')[0]});
+ const partnerEmails=partners.map(p=>p.email);
  mkdirSync(dir,{recursive:true});
  const file=join(dir,'shop.json');
  let state=existsSync(file)?JSON.parse(readFileSync(file,'utf8')):{products:structuredClone(seed),orders:[]};
@@ -133,7 +136,7 @@ if(path==='/admin/products'&&method==='POST'){const p={...body,id:Date.now(),act
   if(path==='/orders')return state.orders.filter(o=>o.email===user.email);
   if(path==='/admin/orders')return state.orders;
   if(path.startsWith('/admin/delivery-requests/')&&method==='POST'){
-   const o=state.orders.find(o=>o.id===path.split('/').pop());if(!o)throw Error('Order not found');sendRequest(o,user,body,partners);state.deliveryPickup=o.locations.pickup;save();return o;
+   const o=state.orders.find(o=>o.id===path.split('/').pop());if(!o)throw Error('Order not found');sendRequest(o,user,body,partnerEmails);o.assigned_name=partners.find(p=>p.email===o.assigned_to)?.name||o.assigned_to;state.deliveryPickup=o.locations.pickup;save();return o;
   }
   if(path.startsWith('/admin/withdraw-delivery/')&&method==='POST'){
    const o=state.orders.find(o=>o.id===path.split('/').pop());if(!o)throw Error('Order not found');withdrawRequest(o,user);save();return o;

@@ -20,9 +20,11 @@ const devOtp=mailer.mode==='smtp'?'':(process.env.DEV_OTP||'');
 const store=createStore(dataDir),auth=createAuth(dataDir,{devOtp});
 // Staff roles come only from server configuration; everyone else who signs in is a customer.
 const emails=v=>String(v||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
-const ownerEmails=emails(process.env.OWNER_EMAILS),deliveryEmails=emails(process.env.DELIVERY_EMAILS);
+// DELIVERY_EMAILS entries may include a display name: "Ravi Kumar <ravi@example.com>, driver2@example.com".
+const deliveryPartners=String(process.env.DELIVERY_EMAILS||'').split(',').map(s=>s.trim()).filter(Boolean).map(s=>{const m=s.match(/^(.*?)<([^>]+)>$/);const email=(m?m[2]:s).trim().toLowerCase();return {email,name:(m?m[1].trim().replace(/^"|"$/g,''):'')||email.split('@')[0]};});
+const ownerEmails=emails(process.env.OWNER_EMAILS),deliveryEmails=deliveryPartners.map(p=>p.email);
 const roleOf=email=>ownerEmails.includes(email)?'admin':deliveryEmails.includes(email)?'delivery':'customer';
-const shop=createShop(dataDir,{partners:deliveryEmails});
+const shop=createShop(dataDir,{partners:deliveryPartners});
 const sessionUser=token=>{const s=auth.session(token);return s?{email:s.email,name:s.name,phone:s.phone,role:roleOf(s.email)}:null;};
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png','.jpg':'image/jpeg'};
 
@@ -92,6 +94,6 @@ createServer(async(req,res)=>{
  console.log(`Owner portal: http://localhost:${port}/?portal=admin  ->  Activity`);
  console.log(`Email: ${mailer.mode==='smtp'?'SMTP '+process.env.SMTP_HOST:'development mode (sign-in codes print here)'}`);
  if(devOtp)console.log(`DEV_OTP active: sign in with code ${devOtp} for any email (development only; ignored once SMTP is set).`);
- console.log(`Owners: ${ownerEmails.join(', ')||'none - set OWNER_EMAILS'} · Delivery: ${deliveryEmails.join(', ')||'none - set DELIVERY_EMAILS'}`);
+ console.log(`Owners: ${ownerEmails.join(', ')||'none - set OWNER_EMAILS'} · Delivery: ${deliveryPartners.map(p=>p.name+' <'+p.email+'>').join(', ')||'none - set DELIVERY_EMAILS'}`);
  console.log(`Admin key: ${process.env.ADMIN_KEY?'from ADMIN_KEY env':store.keyFile}`);
 });

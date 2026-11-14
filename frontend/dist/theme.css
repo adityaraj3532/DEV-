@@ -95,6 +95,18 @@ html{background:var(--bg);scroll-behavior:smooth}body{background:var(--bg);color
 .details-fields textarea{min-height:90px}
 @media (max-width:640px){.detail-features ul{grid-template-columns:1fr}.detail-assure li{grid-template-columns:1fr;gap:2px}}
 
+
+/* Order item photos, Orders badge, delivery partner */
+.order-item-name{display:inline-flex;align-items:center;gap:12px;min-width:0}
+.order-item-line{align-items:center}
+.order-thumb{width:52px;height:52px;flex:none;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.order-thumb img{width:100%;height:100%;object-fit:contain}
+.order-thumb .ui-icon{width:26px;height:26px;opacity:.75}
+#navigation button.has-badge{position:relative;overflow:visible}
+.nav-badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;line-height:20px;text-align:center;box-shadow:0 0 0 2px rgba(15,15,40,.9);animation:badge-pop .35s ease-out}
+@keyframes badge-pop{0%{transform:scale(.3)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+.delivery-partner-line{display:flex;align-items:center;gap:8px;margin:10px 0}
+
 /* Checkout */
 .co-page{max-width:1080px;margin:0 auto}
 .co-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
