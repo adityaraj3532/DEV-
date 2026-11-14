@@ -1,5 +1,6 @@
-// File-backed activity store for the local Node backend. No external dependencies.
-import {mkdirSync,readFileSync,writeFileSync,appendFileSync,existsSync,renameSync} from 'node:fs';
+// Customer list and activity log, stored in the SQLite database (server/db.mjs).
+import {mkdirSync,readFileSync,writeFileSync,existsSync,renameSync} from 'node:fs';
+import {openDb,transaction} from './db.mjs';
 import {join} from 'node:path';
 import {randomBytes,timingSafeEqual} from 'node:crypto';
 
@@ -24,41 +25,56 @@ export function cleanEvent(body,now=Date.now()){
 
 export function createStore(dir){
  mkdirSync(dir,{recursive:true});
- const customersFile=join(dir,'customers.json'),activityFile=join(dir,'activity.jsonl'),keyFile=join(dir,'admin-key.txt');
- let customers=existsSync(customersFile)?JSON.parse(readFileSync(customersFile,'utf8')):{};
- let activity=existsSync(activityFile)?readFileSync(activityFile,'utf8').split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l);}catch{return null;}}).filter(Boolean):[];
+ const db=openDb(dir),customersFile=join(dir,'customers.json'),activityFile=join(dir,'activity.jsonl'),keyFile=join(dir,'admin-key.txt');
  let adminKey=process.env.ADMIN_KEY||(existsSync(keyFile)?readFileSync(keyFile,'utf8').trim():'');
  if(!adminKey){adminKey=randomBytes(18).toString('base64url');writeFileSync(keyFile,adminKey+'\n',{mode:0o600});}
- const saveCustomers=()=>{const tmp=customersFile+'.tmp';writeFileSync(tmp,JSON.stringify(customers,null,1));renameSync(tmp,customersFile);};
 
+ const insertEvent=db.prepare('INSERT OR IGNORE INTO activity(id,at,type,email,name,phone,session,device,detail) VALUES(?,?,?,?,?,?,?,?,?)');
+ const upsertCustomer=db.prepare(`INSERT INTO customers(email,name,phone,first_seen,last_seen,last_login,logins,orders,spent_paise,events,device)
+  VALUES(@email,@name,@phone,@at,@at,@login_at,@login,@order,@spent,1,@device)
+  ON CONFLICT(email) DO UPDATE SET name=COALESCE(excluded.name,customers.name),phone=COALESCE(excluded.phone,customers.phone),
+  last_seen=excluded.last_seen,last_login=COALESCE(excluded.last_login,customers.last_login),logins=customers.logins+excluded.logins,
+  orders=customers.orders+excluded.orders,spent_paise=customers.spent_paise+excluded.spent_paise,events=customers.events+1,
+  device=COALESCE(excluded.device,customers.device)`);
+
+ // One-time import of the older file-based data (files are kept, renamed *.imported).
+ const empty=!db.prepare('SELECT 1 FROM activity LIMIT 1').get()&&!db.prepare('SELECT 1 FROM customers LIMIT 1').get();
+ if(empty&&existsSync(activityFile)){
+  const events=readFileSync(activityFile,'utf8').split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l);}catch{return null;}}).filter(Boolean);
+  transaction(db,()=>{for(const e of events)insertEvent.run(e.id,e.at,e.type,e.email??null,e.name??null,e.phone??null,e.session??null,e.device??null,JSON.stringify(e.detail||{}));});
+  try{renameSync(activityFile,activityFile+'.imported');}catch{}
+ }
+ if(empty&&existsSync(customersFile)){
+  const all=Object.values(JSON.parse(readFileSync(customersFile,'utf8')));
+  const st=db.prepare('INSERT OR REPLACE INTO customers(email,name,phone,first_seen,last_seen,last_login,logins,orders,spent_paise,events,device) VALUES(?,?,?,?,?,?,?,?,?,?,?)');
+  transaction(db,()=>{for(const c of all)st.run(c.email,c.name??null,c.phone??null,c.first_seen??null,c.last_seen??null,c.last_login??null,c.logins||0,c.orders||0,c.spent_paise||0,c.events||0,c.device??null);});
+  try{renameSync(customersFile,customersFile+'.imported');}catch{}
+ }
+
+ const toEvent=r=>({...r,detail:(()=>{try{return JSON.parse(r.detail||'{}');}catch{return {};}})()});
  function record(event){
-  activity.push(event);
-  if(activity.length>50000)activity=activity.slice(-40000);
-  appendFileSync(activityFile,JSON.stringify(event)+'\n');
-  if(event.email){
-   const c=customers[event.email]??={email:event.email,name:null,phone:null,first_seen:event.at,last_seen:event.at,last_login:null,logins:0,orders:0,spent_paise:0,events:0};
-   c.last_seen=event.at;c.events++;
-   if(event.name)c.name=event.name;
-   if(event.phone)c.phone=event.phone;
-   if(event.device)c.device=event.device;
-   if(event.type==='login'){c.logins++;c.last_login=event.at;}
-   if(event.type==='order_placed'){c.orders++;c.spent_paise+=Math.max(0,Math.round(+event.detail.total_paise||0));}
-   saveCustomers();
-  }
+  transaction(db,()=>{
+   insertEvent.run(event.id,event.at,event.type,event.email,event.name,event.phone,event.session,event.device,JSON.stringify(event.detail||{}));
+   if(event.email)upsertCustomer.run({email:event.email,name:event.name||null,phone:event.phone||null,at:event.at,device:event.device||null,
+    login:event.type==='login'?1:0,login_at:event.type==='login'?event.at:null,order:event.type==='order_placed'?1:0,
+    spent:event.type==='order_placed'?Math.max(0,Math.round(+event.detail?.total_paise||0)):0});
+  });
   return event;
  }
  const checkKey=k=>{const a=Buffer.from(String(k||'')),b=Buffer.from(adminKey);return a.length===b.length&&timingSafeEqual(a,b);};
  function list({email,type,limit=200}={}){
-  let rows=activity;
-  if(email)rows=rows.filter(e=>e.email===String(email).toLowerCase());
-  if(type)rows=rows.filter(e=>e.type===type);
-  return rows.slice(-Math.min(1000,Math.max(1,+limit||200))).reverse();
+  const where=[],args=[];
+  if(email){where.push('email=?');args.push(String(email).toLowerCase());}
+  if(type){where.push('type=?');args.push(String(type));}
+  const n=Math.min(1000,Math.max(1,+limit||200));
+  return db.prepare('SELECT * FROM activity'+(where.length?' WHERE '+where.join(' AND '):'')+' ORDER BY at DESC, rowid DESC LIMIT '+n).all(...args).map(toEvent);
  }
  function summary(){
-  const day=Date.now()-86400000,online=Date.now()-15*60000;
-  const all=Object.values(customers);
-  return {customers:all.length,active_today:all.filter(c=>c.last_seen>=day).length,online_now:all.filter(c=>c.last_seen>=online).length,
-   logins_today:activity.filter(e=>e.type==='login'&&e.at>=day).length,orders:all.reduce((n,c)=>n+c.orders,0),revenue_paise:all.reduce((n,c)=>n+c.spent_paise,0),events:activity.length};
+  const day=Date.now()-86400000,online=Date.now()-15*60000,one=(sql,...a)=>Object.values(db.prepare(sql).get(...a))[0]||0;
+  return {customers:one('SELECT COUNT(*) FROM customers'),active_today:one('SELECT COUNT(*) FROM customers WHERE last_seen>=?',day),
+   online_now:one('SELECT COUNT(*) FROM customers WHERE last_seen>=?',online),logins_today:one("SELECT COUNT(*) FROM activity WHERE type='login' AND at>=?",day),
+   orders:one('SELECT SUM(orders) FROM customers'),revenue_paise:one('SELECT SUM(spent_paise) FROM customers'),events:one('SELECT COUNT(*) FROM activity')};
  }
- return {record,list,summary,checkKey,customers:()=>Object.values(customers).sort((a,b)=>b.last_seen-a.last_seen),adminKey:()=>adminKey,keyFile};
+ const customers=()=>db.prepare('SELECT * FROM customers ORDER BY last_seen DESC').all().map(r=>({...r}));
+ return {record,list,summary,checkKey,customers,adminKey:()=>adminKey,keyFile};
 }

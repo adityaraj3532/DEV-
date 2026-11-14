@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
+import {closeDb,closeAll,openDb} from '../server/db.mjs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createShop} from '../server/shop.mjs';
@@ -71,9 +72,10 @@ try{
  assert.equal(shop.snapshot(asha).reviews[0].email,'asha@example.com');
 
  // Persistence across restarts
+ closeDb(dir); // reopen from disk to prove it was saved in the database
  const again=createShop(dir,{partners:['driver@shop.in']});
  assert.equal(again.snapshot(owner).orders.length,1);
  assert.equal(again.snapshot(owner).customCategories.length,1);
  assert.ok(again.snapshot(owner).products.some(p=>p.name==='Office Monitor'));
  console.log('PASS: server shop seeding, order validation and server prices, role-filtered snapshots, owner-only routes, delivery partners, promotions, categories, own customer records, repairs, review privacy and persistence');
-}finally{rmSync(dir,{recursive:true,force:true});}
+}finally{closeAll();rmSync(dir,{recursive:true,force:true});}

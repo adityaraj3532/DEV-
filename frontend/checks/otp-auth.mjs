@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
+import {closeDb,closeAll,openDb} from '../server/db.mjs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createAuth} from '../server/auth.mjs';
@@ -17,7 +18,7 @@ try{
  assert.equal(customer.email,'asha@example.com');
  assert.throws(()=>auth.verifyCode({email:'asha@example.com',code}),/expired|not requested/); // single use
  assert.equal(auth.session(token).name,'Asha');assert.equal(auth.session('nope'),null);
- assert.ok(!readFileSync(join(dir,'sessions.json'),'utf8').includes(token));  // only hashes stored
+ assert.ok(!openDb(dir).prepare('SELECT token_hash FROM sessions').all().some(r=>r.token_hash===token));  // only hashes stored
  assert.equal(createAuth(dir,{now:()=>t}).session(token).email,'asha@example.com'); // survives restart
  // expiry and attempt limit
  t+=31000;const second=auth.requestCode(who).code;t+=11*60000;
@@ -38,4 +39,4 @@ try{
  const badDev=createAuth(dir,{now:()=>dt,devOtp:'12'});badDev.requestCode({name:'Bad Dev',email:'bad@example.com'}); // too-short devOtp is ignored
  assert.throws(()=>badDev.verifyCode({email:'bad@example.com',code:'12'}),/Incorrect/);
  console.log('PASS: OTP sign-in codes, cooldown, single use, expiry, attempt limit, hashed persistent sessions, logout, dev code');
-}finally{rmSync(dir,{recursive:true,force:true});}
+}finally{closeAll();rmSync(dir,{recursive:true,force:true});}

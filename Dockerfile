@@ -1,5 +1,5 @@
 # Dev Computer website + backend. No runtime npm dependencies; the built site in frontend/dist is served as-is.
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 COPY frontend/serve.mjs ./
 COPY frontend/server ./server

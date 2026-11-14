@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
+import {closeDb,closeAll,openDb} from '../server/db.mjs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createStore,cleanEvent} from '../server/store.mjs';
@@ -15,6 +16,6 @@ try{
  const [c]=s.customers();assert.equal(c.logins,1);assert.equal(c.orders,1);assert.equal(c.spent_paise,150000);assert.equal(c.name,'Asha <b>');
  assert.equal(s.list({type:'login'}).length,1);assert.equal(s.summary().customers,1);
  assert.ok(s.checkKey(s.adminKey()));assert.ok(!s.checkKey('wrong'));assert.ok(!s.checkKey(''));
- const again=createStore(dir);assert.equal(again.customers()[0].orders,1);assert.equal(again.list().length,2);assert.equal(again.adminKey(),s.adminKey());
+ closeDb(dir);const again=createStore(dir);assert.equal(again.customers()[0].orders,1);assert.equal(again.list().length,2);assert.equal(again.adminKey(),s.adminKey());
  console.log('activity store ok');
-}finally{rmSync(dir,{recursive:true,force:true});}
+}finally{closeAll();rmSync(dir,{recursive:true,force:true});}

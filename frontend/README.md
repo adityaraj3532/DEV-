@@ -17,7 +17,7 @@ From this directory: `npm ci`, `npm run build`, `npm start`.
 Roles: `OWNER_EMAILS` and `DELIVERY_EMAILS` (comma separated) decide who is an owner or delivery partner; everyone
 else who signs in is a customer. Staff sign in with the same email code at `/?portal=admin` and `/?portal=delivery`.
 
-Data is written to `frontend/data/` (git-ignored): `shop.json`, `customers.json`, `activity.jsonl`, `sessions.json` and `admin-key.txt`.
+Data is stored in the SQLite database `frontend/data/dev-computer.db` (git-ignored, see [DATABASE.md](../DATABASE.md)); the admin key is in `frontend/data/admin-key.txt`. Back up with `npm run db:backup`.
 The admin key is generated on first start; set `ADMIN_KEY` to choose your own. `PORT`, `HOST` and `DATA_DIR` are also configurable.
 
 Open `http://localhost:8080/?portal=admin`, sign in with an owner email, and choose **Activity** to see signed-in customers
@@ -28,7 +28,7 @@ build) the panel falls back to activity recorded in that browser.
 
 Customers enter name, email and optional phone, receive a 6-digit code, and enter it to sign in.
 Codes expire after 10 minutes, are single use, allow 5 attempts, and can be resent every 30 s (max 5/hour).
-Sign-in creates a 30-day session token (only its hash is stored in `data/sessions.json`); activity is
+Sign-in creates a 30-day session token (only its hash is stored, in the `sessions` table); activity is
 attributed only to verified sessions.
 
 Without SMTP settings the server runs in **development mode** and prints codes in its terminal. To send real email:

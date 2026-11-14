@@ -1,7 +1,8 @@
 // Server-side shop: the single source of truth for products, orders, returns, reviews,
 // promotions, repairs, categories and each signed-in user's cart/wishlist/profile.
 // The request rules below were moved from the browser (src/local-app.js api()) so they are enforced here.
-import {existsSync,readFileSync,writeFileSync,renameSync,mkdirSync} from 'node:fs';
+import {existsSync,readFileSync,renameSync} from 'node:fs';
+import {openDb,transaction} from './db.mjs';
 import {join} from 'node:path';
 import {point,sendRequest,respondRequest,withdrawRequest,shareLocation,canDrive} from '../src/delivery.js';
 import {validatePromotion} from '../src/promotions.js';
@@ -27,13 +28,50 @@ export function canReturn(order,item){return order.status==='Delivered'&&item.re
 const ICONS=['box','laptop','camera','headphones','speaker','mic','charger'];
 const denied=(m,status=403)=>Object.assign(Error(m),{status});
 
+const J=v=>JSON.stringify(v??null),P=t=>{try{return JSON.parse(t);}catch{return null;}};
+const iso=sec=>Number.isFinite(+sec)&&+sec>0?new Date(+sec*1000).toISOString():null;
+
+/** Reads the whole shop from the database, or null if the database has no shop yet. */
+function loadState(db){
+ if(!db.prepare("SELECT 1 FROM settings WHERE key='initialized'").get())return null;
+ const all=t=>db.prepare('SELECT data FROM '+t).all().map(r=>P(r.data)).filter(Boolean);
+ const setting=k=>P(db.prepare('SELECT value FROM settings WHERE key=?').get(k)?.value);
+ const customers={};for(const r of db.prepare('SELECT email,data FROM saved_user_data').all())customers[r.email]=P(r.data)||{};
+ const orders=all('orders').sort((a,b)=>(b.created||0)-(a.created||0));
+ return {products:db.prepare('SELECT data FROM products ORDER BY rowid').all().map(r=>P(r.data)),orders,returns:all('returns'),reviews:all('reviews'),
+  promotions:db.prepare('SELECT data FROM promotions ORDER BY rowid').all().map(r=>P(r.data)),repairs:all('repairs'),
+  customCategories:db.prepare('SELECT id,name,icon FROM categories ORDER BY rowid').all().map(r=>({...r})),customers,
+  catalogVersion:setting('catalogVersion'),deliveryPickup:setting('deliveryPickup')??undefined};
+}
+
+/** Writes the whole shop to the database in one transaction (all-or-nothing). */
+function saveState(db,state){
+ transaction(db,()=>{
+  for(const t of ['order_items','orders','products','returns','reviews','promotions','repairs','categories','saved_user_data'])db.exec('DELETE FROM '+t);
+  const ins=(sql,rows,map)=>{const st=db.prepare(sql);for(const x of rows)st.run(...map(x));};
+  ins('INSERT INTO products(id,name,category,brand,price_paise,stock,active,data) VALUES(?,?,?,?,?,?,?,?)',state.products,p=>[p.id,String(p.name||''),p.category??null,p.brand??null,Math.round(+p.price_paise||0),Math.round(+p.stock||0),p.active?1:0,J(p)]);
+  ins('INSERT INTO orders(id,created_at,customer_email,customer_name,phone,address,status,payment_method,total_paise,delivery_partner,data) VALUES(?,?,?,?,?,?,?,?,?,?,?)',state.orders,o=>[o.id,iso(o.created),o.email??null,o.name??null,o.phone??null,o.address??null,o.status??null,o.payment_method??null,Math.round(+o.total_paise||0),o.assigned_name||o.assigned_to||null,J(o)]);
+  const item=db.prepare('INSERT INTO order_items(order_id,product_id,product_name,quantity,price_paise) VALUES(?,?,?,?,?)');
+  for(const o of state.orders)for(const i of o.items||[])item.run(o.id,i.product_id??null,i.name??null,i.quantity??null,i.price_paise??null);
+  ins('INSERT INTO returns(id,order_id,product_id,customer_email,status,reason,data) VALUES(?,?,?,?,?,?,?)',state.returns||[],x=>[x.id,x.order_id??null,x.product_id??null,x.email??null,x.status??null,x.reason??null,J(x)]);
+  ins('INSERT INTO reviews(id,product_id,customer_email,rating,review_text,data) VALUES(?,?,?,?,?,?)',state.reviews||[],x=>[x.id,x.product_id??null,x.email??null,x.rating??null,x.text??null,J(x)]);
+  ins('INSERT INTO promotions(id,kind,title,published,start_date,end_date,data) VALUES(?,?,?,?,?,?,?)',state.promotions||[],x=>[x.id,x.kind??null,x.title??null,x.published?1:0,x.start||null,x.end||null,J(x)]);
+  ins('INSERT INTO repairs(id,customer_email,item,status,price_paise,data) VALUES(?,?,?,?,?,?)',state.repairs||[],x=>[x.id,x.email??null,x.item??null,x.status??null,x.price_paise??null,J(x)]);
+  ins('INSERT INTO categories(id,name,icon) VALUES(?,?,?)',state.customCategories||[],c=>[c.id,c.name,c.icon??null]);
+  ins('INSERT INTO saved_user_data(email,data) VALUES(?,?)',Object.entries(state.customers||{}),([e,d])=>[e,J(d)]);
+  const set=db.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value');
+  set.run('initialized','true');set.run('catalogVersion',J(state.catalogVersion));set.run('deliveryPickup',J(state.deliveryPickup));
+ });
+}
+
 export function createShop(dir,{partners=[]}={}){
  // partners: [{email,name}] (plain email strings are accepted too)
  partners=partners.map(p=>typeof p==='string'?{email:p.toLowerCase(),name:p.split('@')[0]}:{email:p.email.toLowerCase(),name:p.name||p.email.split('@')[0]});
  const partnerEmails=partners.map(p=>p.email);
- mkdirSync(dir,{recursive:true});
- const file=join(dir,'shop.json');
- let state=existsSync(file)?JSON.parse(readFileSync(file,'utf8')):{products:structuredClone(seed),orders:[]};
+ const db=openDb(dir),file=join(dir,'shop.json');
+ // First start: import the old shop.json if there is one (kept as shop.json.imported), otherwise seed the catalogue.
+ const fromDb=loadState(db),importing=!fromDb&&existsSync(file);
+ let state=fromDb||(importing?JSON.parse(readFileSync(file,'utf8')):{products:structuredClone(seed),orders:[]});
  state.promotions??=[];state.reviews??=[];state.returns??=[];state.repairs??=[];state.customers??={};state.customCategories??=[];
  if(!state.catalogVersion){
 state.products.forEach(p=>p.brand=p.brand||({Laptop:'ASUS',Headphone:'JBL',Microphone:'Maono',Camera:'Canon'})[p.category]||'Other');
@@ -41,8 +79,9 @@ extraProducts.forEach((a,i)=>state.products.push({id:100+i,name:a[0],category:a[
 state.catalogVersion=2;
  }
  addLaptopSamples(state);
- const save=()=>{const tmp=file+'.tmp';writeFileSync(tmp,JSON.stringify(state));renameSync(tmp,file);};
+ const save=()=>saveState(db,state);
  save();
+ if(importing)try{renameSync(file,file+'.imported');}catch{}
 
  /** What each role is allowed to see. */
  function snapshot(user){

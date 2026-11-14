@@ -106,3 +106,15 @@ html{background:var(--bg);scroll-behavior:smooth}body{background:var(--bg);color
 .nav-badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;line-height:20px;text-align:center;box-shadow:0 0 0 2px rgba(15,15,40,.9);animation:badge-pop .35s ease-out}
 @keyframes badge-pop{0%{transform:scale(.3)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
 .delivery-partner-line{display:flex;align-items:center;gap:8px;margin:10px 0}
+
+/* Database page */
+.db-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:10px 0 18px}
+.db-table-tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:12px 14px}
+.db-table-tile small{opacity:.7;font-weight:400}
+.db-examples{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.db-examples button{padding:7px 12px;font-size:13px}
+.db-sql{width:100%;font:13px/1.5 ui-monospace,Consolas,monospace;margin:8px 0;min-height:130px}
+.db-table{min-width:max-content}
+.db-table th,.db-table td{white-space:nowrap;font-size:13px}
+.db-table td{max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.db-panel code{font-size:12.5px}

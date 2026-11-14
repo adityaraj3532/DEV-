@@ -6,6 +6,8 @@ import {createStore,cleanEvent} from './server/store.mjs';
 import {createAuth} from './server/auth.mjs';
 import {mailerFromEnv} from './server/mailer.mjs';
 import {createShop} from './server/shop.mjs';
+import {createExplorer} from './server/db-explorer.mjs';
+import {DB_FILE} from './server/db.mjs';
 
 // Settings can live in frontend/.env (git-ignored). Real environment variables win.
 try{process.loadEnvFile(fileURLToPath(new URL('./.env',import.meta.url)));}catch{}
@@ -25,6 +27,7 @@ const deliveryPartners=String(process.env.DELIVERY_EMAILS||'').split(',').map(s=
 const ownerEmails=emails(process.env.OWNER_EMAILS),deliveryEmails=deliveryPartners.map(p=>p.email);
 const roleOf=email=>ownerEmails.includes(email)?'admin':deliveryEmails.includes(email)?'delivery':'customer';
 const shop=createShop(dataDir,{partners:deliveryPartners});
+const explorer=createExplorer(dataDir);
 const sessionUser=token=>{const s=auth.session(token);return s?{email:s.email,name:s.name,phone:s.phone,role:roleOf(s.email)}:null;};
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png','.jpg':'image/jpeg'};
 
@@ -70,6 +73,10 @@ async function api(req,res,url){
   if(url.pathname==='/api/admin/summary')return json(res,200,store.summary());
   if(url.pathname==='/api/admin/customers')return json(res,200,store.customers());
   if(url.pathname==='/api/admin/activity')return json(res,200,store.list(Object.fromEntries(url.searchParams)));
+  // Database page (read-only)
+  if(url.pathname==='/api/admin/db/tables')return json(res,200,{file:DB_FILE,tables:explorer.tables()});
+  if(url.pathname==='/api/admin/db/rows')return json(res,200,explorer.rows(url.searchParams.get('table'),url.searchParams.get('limit'),url.searchParams.get('offset')));
+  if(url.pathname==='/api/admin/db/query'&&req.method==='POST')return json(res,200,explorer.query((await readBody(req,16384)).sql));
  }
  if(url.pathname.startsWith('/api/shop/')){
   const user=sessionUser(token),path=url.pathname.slice('/api/shop'.length);
@@ -95,5 +102,6 @@ createServer(async(req,res)=>{
  console.log(`Email: ${mailer.mode==='smtp'?'SMTP '+process.env.SMTP_HOST:'development mode (sign-in codes print here)'}`);
  if(devOtp)console.log(`DEV_OTP active: sign in with code ${devOtp} for any email (development only; ignored once SMTP is set).`);
  console.log(`Owners: ${ownerEmails.join(', ')||'none - set OWNER_EMAILS'} · Delivery: ${deliveryPartners.map(p=>p.name+' <'+p.email+'>').join(', ')||'none - set DELIVERY_EMAILS'}`);
+ console.log(`Database: ${resolve(dataDir,DB_FILE)}  (owner portal -> Database)`);
  console.log(`Admin key: ${process.env.ADMIN_KEY?'from ADMIN_KEY env':store.keyFile}`);
 });

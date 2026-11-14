@@ -43,7 +43,7 @@ or `npm run android:open` to build/sign a release in Android Studio. `API_URL` m
 
 ## What is shared between website and app
 
-Everything is stored on the server (`DATA_DIR/shop.json`), so the website and the app show the same shop:
+Everything is stored in the server's SQLite database (`DATA_DIR/dev-computer.db`, see [DATABASE.md](DATABASE.md)), so the website and the app show the same shop:
 products and categories, orders and delivery, returns, reviews, offers and events, repairs, and each signed-in
 person's cart, wishlist, saved addresses and profile. Only a guest's cart/wishlist stays on the device until they sign in.
 

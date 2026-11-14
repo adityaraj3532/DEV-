@@ -1,5 +1,6 @@
 // Email one-time-code sign-in and session tokens for customers.
-import {existsSync,readFileSync,writeFileSync,renameSync} from 'node:fs';
+import {existsSync,readFileSync,renameSync} from 'node:fs';
+import {openDb,transaction} from './db.mjs';
 import {join} from 'node:path';
 import {randomBytes,randomInt,createHash,timingSafeEqual} from 'node:crypto';
 
@@ -23,10 +24,15 @@ export function createAuth(dir,{now=Date.now,devOtp=''}={}){
  // devOtp: a fixed code accepted for any email, for LOCAL DEVELOPMENT ONLY. The caller must pass it
  // only when real email is not configured, never on a hosted shop. It still needs a prior requestCode.
  const devCode=/^\d{6}$/.test(String(devOtp))?String(devOtp):'';
- const file=join(dir,'sessions.json');
- const sessions=existsSync(file)?JSON.parse(readFileSync(file,'utf8')):{}; // tokenHash -> {email,name,phone,expires}
+ const db=openDb(dir),file=join(dir,'sessions.json');
+ // Sessions live in the database (only a hash of each token is stored). One-time import of the old sessions.json.
+ if(existsSync(file)&&!db.prepare('SELECT 1 FROM sessions LIMIT 1').get()){
+  const old=JSON.parse(readFileSync(file,'utf8')),st=db.prepare('INSERT OR REPLACE INTO sessions(token_hash,email,name,phone,expires) VALUES(?,?,?,?,?)');
+  transaction(db,()=>{for(const [h,s] of Object.entries(old))st.run(h,s.email,s.name??null,s.phone??null,s.expires);});
+  try{renameSync(file,file+'.imported');}catch{}
+ }
+ const getSession=db.prepare('SELECT email,name,phone,expires FROM sessions WHERE token_hash=?'),delSession=db.prepare('DELETE FROM sessions WHERE token_hash=?');
  const pending=new Map(); // email -> {codeHash,expires,attempts,profile,sends:[times]}
- const persist=()=>{const t=now();for(const [k,s] of Object.entries(sessions))if(s.expires<t)delete sessions[k];const tmp=file+'.tmp';writeFileSync(tmp,JSON.stringify(sessions),{mode:0o600});renameSync(tmp,file);};
 
  /** Creates a code for this email. Returns the plain code so the caller can deliver it. */
  function requestCode(body){
@@ -51,11 +57,12 @@ export function createAuth(dir,{now=Date.now,devOtp=''}={}){
   if(!devMatch&&(!/^\d{6}$/.test(code)||!timingSafeEqual(a,b)))throw fail(`Incorrect code. ${MAX_ATTEMPTS-p.attempts} attempts left.`);
   pending.delete(email);
   const token=randomBytes(32).toString('base64url');
-  sessions[hash(token)]={...p.profile,expires:t+SESSION_TTL};persist();
+  db.prepare('DELETE FROM sessions WHERE expires<?').run(t);
+  db.prepare('INSERT INTO sessions(token_hash,email,name,phone,expires) VALUES(?,?,?,?,?)').run(hash(token),p.profile.email,p.profile.name,p.profile.phone||null,t+SESSION_TTL);
   return {token,customer:p.profile};
  }
 
- function session(token){if(!token)return null;const s=sessions[hash(token)];if(!s)return null;if(s.expires<now()){delete sessions[hash(token)];persist();return null;}return s;}
- function logout(token){if(token&&sessions[hash(token)]){delete sessions[hash(token)];persist();}}
+ function session(token){if(!token)return null;const row=getSession.get(hash(token));if(!row)return null;if(row.expires<now()){delSession.run(hash(token));return null;}return {...row};}
+ function logout(token){if(token)delSession.run(hash(token));}
  return {requestCode,verifyCode,session,logout};
 }
